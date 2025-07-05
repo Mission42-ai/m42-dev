@@ -1,5 +1,5 @@
 #!/bin/bash
-# claude-dev.sh - Claude Autonomous Development Tool for m42-core
+# m42-dev.sh - M42 Autonomous Development Tool
 # 
 # Tool für Feature-basierte autonome Entwicklung mit Claude Code CLI
 # Unterstützt parallele Milestone-Entwicklung mit State Management

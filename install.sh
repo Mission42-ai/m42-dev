@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Claude Autonomous Development Tool Installer
+# M42 Dev Tool Installer
 # This script helps install the tool in your project
 
 set -e
@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Claude Autonomous Development Tool Installer${NC}"
+echo -e "${GREEN}M42 Dev Tool Installer${NC}"
 echo "============================================="
 echo
 
@@ -68,21 +68,21 @@ if [ ! -d ".git" ]; then
 fi
 
 echo
-echo "Installing Claude Autonomous Development Tool..."
+echo "Installing M42 Dev Tool..."
 
 # Create tools directory
 mkdir -p tools
 
 # Copy the tool
 echo "1. Copying tool files..."
-cp -r "$SCRIPT_DIR" tools/claude-autonomous-dev
+cp -r "$SCRIPT_DIR" tools/m42-dev
 
 # Create Claude commands directory
 echo "2. Setting up Claude commands..."
 mkdir -p .claude/commands
 
 # Create symbolic link for the command
-ln -sf ../../tools/claude-autonomous-dev/commands/develop-feature.md .claude/commands/develop-feature.md
+ln -sf ../../tools/m42-dev/commands/develop-feature.md .claude/commands/develop-feature.md
 
 # Create specs directory
 echo "3. Creating project structure..."
@@ -125,19 +125,19 @@ fi
 
 # Make scripts executable
 echo "5. Setting permissions..."
-chmod +x tools/claude-autonomous-dev/claude-dev.sh
+chmod +x tools/m42-dev/m42-dev.sh
 
 # Create .gitignore entries
 echo "6. Updating .gitignore..."
 if [ -f ".gitignore" ]; then
     if ! grep -q "\.claude-workflow/" .gitignore; then
-        echo -e "\n# Claude Autonomous Development Tool" >> .gitignore
+        echo -e "\n# M42 Dev Tool" >> .gitignore
         echo ".claude-workflow/" >> .gitignore
         echo "*.claude-backup" >> .gitignore
     fi
 else
     cat > .gitignore << 'EOF'
-# Claude Autonomous Development Tool
+# M42 Dev Tool
 .claude-workflow/
 *.claude-backup
 EOF
@@ -153,10 +153,10 @@ echo "3. Run: /develop-feature FEAT-XXX to start developing a feature"
 echo
 echo "Quick test:"
 echo "  cd $PROJECT_DIR"
-echo "  tools/claude-autonomous-dev/claude-dev.sh --help"
+echo "  tools/m42-dev/m42-dev.sh --help"
 echo
 echo "Documentation:"
-echo "  - Setup Guide: tools/claude-autonomous-dev/SETUP_GUIDE.md"
-echo "  - README: tools/claude-autonomous-dev/README.md"
+echo "  - Setup Guide: tools/m42-dev/SETUP_GUIDE.md"
+echo "  - README: tools/m42-dev/README.md"
 echo
 echo -e "${GREEN}Happy autonomous development!${NC}"

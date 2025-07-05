@@ -1,4 +1,4 @@
-# Claude Autonomous Development Tool
+# M42 Dev Tool
 .claude-workflow/
 *.claude-backup
 config.local.sh

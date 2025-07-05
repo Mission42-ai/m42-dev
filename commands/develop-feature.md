@@ -1,6 +1,6 @@
 ---
 allowed-tools: Bash(*), Read(specs/features/**), TodoWrite(*), TodoRead, LS(specs/features/**)
-description: Orchestrates autonomous feature development by managing the claude-dev.sh bash script
+description: Orchestrates autonomous feature development by managing the m42-dev.sh bash script
 ---
 # Feature Development Orchestrator
 
@@ -9,16 +9,16 @@ Initialize and validate feature:
 
 ## Step 1: Check Current Status
 
-!`tools/claude-autonomous-dev/claude-dev.sh status $1`
+!`tools/m42-dev/m42-dev.sh status $1`
 
 ## Step 2: Initialize Feature (if needed)
 
-!`if [ ! -f "specs/features/$1/requirements.yaml" ]; then echo "📝 Feature not initialized. Creating..."; tools/claude-autonomous-dev/claude-dev.sh init $1; echo "Please edit requirements.yaml and project-context.md before continuing."; else echo "✅ Feature already initialized"; fi`
+!`if [ ! -f "specs/features/$1/requirements.yaml" ]; then echo "📝 Feature not initialized. Creating..."; tools/m42-dev/m42-dev.sh init $1; echo "Please edit requirements.yaml and project-context.md before continuing."; else echo "✅ Feature already initialized"; fi`
 
 ## Step 3: Analyze Milestones and Dependencies
 
 Show all milestones:
-!`tools/claude-autonomous-dev/claude-dev.sh milestones $1`
+!`tools/m42-dev/m42-dev.sh milestones $1`
 
 Parse dependency structure:
 !`echo "=== Milestone Dependencies ==="; yq eval '.milestones[] | .id + ": depends on [" + (.dependencies | join(", ")) + "]"' specs/features/$1/requirements.yaml 2>/dev/null || echo "Could not parse dependencies"`
@@ -39,7 +39,7 @@ Based on the dependency analysis above, I will now:
 For each milestone that can start, I'll run:
 ```bash
 # In separate terminal/process:
-tools/claude-autonomous-dev/claude-dev.sh start $1 <milestone-id>
+tools/m42-dev/m42-dev.sh start $1 <milestone-id>
 ```
 
 The bash script will handle:
@@ -52,7 +52,7 @@ The bash script will handle:
 
 I'll periodically check status:
 ```bash
-tools/claude-autonomous-dev/claude-dev.sh status $1
+tools/m42-dev/m42-dev.sh status $1
 ```
 
 This shows:
@@ -73,7 +73,7 @@ When a milestone completes:
 
 3. **Launch next milestones**:
    ```bash
-   tools/claude-autonomous-dev/claude-dev.sh start $1 <next-milestone>
+   tools/m42-dev/m42-dev.sh start $1 <next-milestone>
    ```
 
 ## Step 6: Parallel Execution Strategy
@@ -97,18 +97,18 @@ If a milestone fails or gets stuck:
 
 2. **Reset if needed**:
    ```bash
-   tools/claude-autonomous-dev/claude-dev.sh reset $1 <milestone>
+   tools/m42-dev/m42-dev.sh reset $1 <milestone>
    ```
 
 3. **Retry**:
    ```bash
-   tools/claude-autonomous-dev/claude-dev.sh start $1 <milestone>
+   tools/m42-dev/m42-dev.sh start $1 <milestone>
    ```
 
 ## Step 8: Final Summary
 
 Once all milestones complete:
-!`echo "=== Final Status ==="; tools/claude-autonomous-dev/claude-dev.sh status $1`
+!`echo "=== Final Status ==="; tools/m42-dev/m42-dev.sh status $1`
 
 Generate summary:
 !`[ -f "specs/features/$1/.claude-workflow/state/global.json" ] && echo "Completed Milestones:" && jq -r '.milestones_completed[]' specs/features/$1/.claude-workflow/state/global.json || echo "Development still in progress"`
@@ -124,7 +124,7 @@ I coordinate the bash script executions by:
 
 The actual development work is done by the autonomous milestone agents launched via:
 ```bash
-tools/claude-autonomous-dev/claude-dev.sh start <feature-id> <milestone>
+tools/m42-dev/m42-dev.sh start <feature-id> <milestone>
 ```
 
 Each milestone runs autonomously until completion, then I coordinate the next steps.

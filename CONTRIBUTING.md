@@ -1,6 +1,6 @@
-# Contributing to Claude Autonomous Development Tool
+# Contributing to M42 Dev Tool
 
-Thank you for your interest in contributing to the Claude Autonomous Development Tool! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to the M42 Dev Tool! This document provides guidelines and instructions for contributing.
 
 ## Code of Conduct
 
@@ -36,8 +36,8 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/yourusername/claude-autonomous-dev.git
-cd claude-autonomous-dev
+git clone https://github.com/Mission42-ai/m42-dev.git
+cd m42-dev
 
 # Create a feature branch
 git checkout -b feature/your-feature-name
@@ -167,9 +167,9 @@ milestones:
 
 ## Getting Help
 
-- **Discord**: [Join our community](https://discord.gg/claude-dev)
+- **Discord**: [Join our community](https://discord.gg/m42-dev)
 - **Discussions**: Use GitHub Discussions for questions
-- **Email**: support@claude-autonomous-dev.example
+- **Email**: support@mission42.ai
 
 ## Recognition
 

@@ -1,6 +1,6 @@
-# Detailed Setup Guide for Claude Autonomous Development Tool
+# Detailed Setup Guide for M42 Dev Tool
 
-This guide provides step-by-step instructions for setting up and using the Claude Autonomous Development Tool in your projects.
+This guide provides step-by-step instructions for setting up and using the M42 Dev Tool in your projects.
 
 ## Prerequisites
 
@@ -26,24 +26,24 @@ Before you begin, ensure you have:
 cd /path/to/your-project
 
 # 2. Clone the tool
-git clone https://github.com/yourusername/claude-autonomous-dev.git tools/claude-dev
+git clone https://github.com/Mission42-ai/m42-dev.git tools/m42-dev
 
 # 3. Create Claude commands directory
 mkdir -p .claude/commands
 
 # 4. Create symbolic link for the command
-ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/develop-feature.md
+ln -s ../../tools/m42-dev/commands/develop-feature.md .claude/commands/develop-feature.md
 
 # 5. Verify installation
 ls -la .claude/commands/develop-feature.md
-# Should show: develop-feature.md -> ../../tools/claude-dev/commands/develop-feature.md
+# Should show: develop-feature.md -> ../../tools/m42-dev/commands/develop-feature.md
 ```
 
 ### Option B: Git Submodule Method (for version control)
 
 ```bash
 # 1. Add as submodule
-git submodule add https://github.com/yourusername/claude-autonomous-dev.git tools/claude-dev
+git submodule add https://github.com/Mission42-ai/m42-dev.git tools/m42-dev
 
 # 2. Initialize submodule
 git submodule init
@@ -51,11 +51,11 @@ git submodule update
 
 # 3. Create symbolic link
 mkdir -p .claude/commands
-ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/develop-feature.md
+ln -s ../../tools/m42-dev/commands/develop-feature.md .claude/commands/develop-feature.md
 
 # 4. Commit the changes
-git add .gitmodules tools/claude-dev .claude/commands/develop-feature.md
-git commit -m "Add Claude Autonomous Development Tool"
+git add .gitmodules tools/m42-dev .claude/commands/develop-feature.md
+git commit -m "Add M42 Dev Tool"
 ```
 
 ## Step 2: Project Configuration
@@ -91,7 +91,7 @@ EOF
 
 ```bash
 # Create local configuration
-cat > tools/claude-dev/config.local.sh << 'EOF'
+cat > tools/m42-dev/config.local.sh << 'EOF'
 # Local configuration overrides
 MAX_ITERATIONS=15  # Default is 10
 PAUSE_BETWEEN_ITERATIONS=10  # Default is 5 seconds
@@ -116,7 +116,7 @@ EOF
 
 ```bash
 # Initialize a new feature
-tools/claude-dev/claude-dev.sh init FEAT-001-user-authentication
+tools/m42-dev/m42-dev.sh init FEAT-001-user-authentication
 
 # This creates:
 # specs/features/FEAT-001-user-authentication/
@@ -268,10 +268,10 @@ Claude will:
 
 ```bash
 # Start specific milestone
-tools/claude-dev/claude-dev.sh start FEAT-001-user-authentication M1
+tools/m42-dev/m42-dev.sh start FEAT-001-user-authentication M1
 
 # Check status
-tools/claude-dev/claude-dev.sh status FEAT-001-user-authentication
+tools/m42-dev/m42-dev.sh status FEAT-001-user-authentication
 
 # Output:
 # Feature: FEAT-001-user-authentication
@@ -286,7 +286,7 @@ tools/claude-dev/claude-dev.sh status FEAT-001-user-authentication
 
 ```bash
 # Watch status
-watch -n 5 'tools/claude-dev/claude-dev.sh status FEAT-001-user-authentication'
+watch -n 5 'tools/m42-dev/m42-dev.sh status FEAT-001-user-authentication'
 
 # Tail logs
 tail -f specs/features/FEAT-001-user-authentication/.claude-workflow/logs/*.log
@@ -334,8 +334,8 @@ cat specs/features/FEAT-001/.claude-workflow/milestones/M2/reviews/review_5.json
 }
 
 # 3. Reset and retry
-tools/claude-dev/claude-dev.sh reset FEAT-001-user-authentication M2
-tools/claude-dev/claude-dev.sh start FEAT-001-user-authentication M2
+tools/m42-dev/m42-dev.sh reset FEAT-001-user-authentication M2
+tools/m42-dev/m42-dev.sh start FEAT-001-user-authentication M2
 ```
 
 ### Manual Intervention
@@ -354,7 +354,7 @@ vi specs/features/FEAT-001/.claude-workflow/milestones/M2/state/checklist.json
 # Mark completed items as "completed"
 
 # Continue
-tools/claude-dev/claude-dev.sh start FEAT-001-user-authentication M2
+tools/m42-dev/m42-dev.sh start FEAT-001-user-authentication M2
 ```
 
 ## Step 8: Completion and Cleanup
@@ -363,7 +363,7 @@ tools/claude-dev/claude-dev.sh start FEAT-001-user-authentication M2
 
 ```bash
 # Final status check
-tools/claude-dev/claude-dev.sh status FEAT-001-user-authentication
+tools/m42-dev/m42-dev.sh status FEAT-001-user-authentication
 
 # All milestones should show as completed
 # Review the created/modified files
@@ -386,7 +386,7 @@ git commit -m "feat: Implement user authentication system
 - REST API endpoints (M3)
 - Comprehensive test coverage (M4)
 
-Developed using Claude Autonomous Development Tool"
+Developed using M42 Dev Tool"
 
 # Push and create PR
 git push origin feat/001-user-authentication

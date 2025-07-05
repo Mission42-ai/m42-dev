@@ -1,4 +1,4 @@
-# Claude Autonomous Development Tool
+# M42 Dev - Autonomous Development Tool
 
 A powerful orchestration system that enables fully autonomous feature development using Claude Code. This tool manages complex feature implementations through milestone-based development with automatic dependency resolution, parallel execution, and quality gates.
 
@@ -25,10 +25,10 @@ A powerful orchestration system that enables fully autonomous feature developmen
 
 ```bash
 # 1. Clone this tool to your project
-git clone https://github.com/yourusername/claude-autonomous-dev.git tools/claude-dev
+git clone https://github.com/Mission42-ai/m42-dev.git tools/m42-dev
 
 # 2. Install the Claude command
-ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/
+ln -s ../../tools/m42-dev/commands/develop-feature.md .claude/commands/
 
 # 3. Start developing a feature
 # In Claude Code:
@@ -44,13 +44,13 @@ ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/
 cd your-project
 
 # Clone the tool
-git clone https://github.com/yourusername/claude-autonomous-dev.git tools/claude-dev
+git clone https://github.com/Mission42-ai/m42-dev.git tools/m42-dev
 
 # Create .claude/commands directory if it doesn't exist
 mkdir -p .claude/commands
 
 # Link the command
-ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/
+ln -s ../../tools/m42-dev/commands/develop-feature.md .claude/commands/
 ```
 
 ### Method 2: Git Submodule
@@ -63,7 +63,7 @@ git submodule update
 
 # Link the command
 mkdir -p .claude/commands
-ln -s ../../tools/claude-dev/commands/develop-feature.md .claude/commands/
+ln -s ../../tools/m42-dev/commands/develop-feature.md .claude/commands/
 ```
 
 ### Method 3: Direct Installation
@@ -108,7 +108,7 @@ curl -sSL https://raw.githubusercontent.com/yourusername/claude-autonomous-dev/m
 /develop-feature FEAT-123-user-authentication
 
 # Or using bash directly
-tools/claude-dev/claude-dev.sh init FEAT-123-user-authentication
+tools/m42-dev/m42-dev.sh init FEAT-123-user-authentication
 ```
 
 This creates:
@@ -180,10 +180,10 @@ milestones:
 
 ```bash
 # Check feature status
-tools/claude-dev/claude-dev.sh status FEAT-123-user-authentication
+tools/m42-dev/m42-dev.sh status FEAT-123-user-authentication
 
 # Check specific milestone
-tools/claude-dev/claude-dev.sh status FEAT-123-user-authentication M1
+tools/m42-dev/m42-dev.sh status FEAT-123-user-authentication M1
 
 # View logs
 tail -f specs/features/FEAT-123/.claude-workflow/milestones/M1/iterations/dev_*.md
@@ -266,13 +266,13 @@ The tool maintains state in `.claude-workflow/`:
 
 ```bash
 # Start specific milestone
-tools/claude-dev/claude-dev.sh start FEAT-123 M1
+tools/m42-dev/m42-dev.sh start FEAT-123 M1
 
 # Reset failed milestone
-tools/claude-dev/claude-dev.sh reset FEAT-123 M1
+tools/m42-dev/m42-dev.sh reset FEAT-123 M1
 
 # List all milestones
-tools/claude-dev/claude-dev.sh milestones FEAT-123
+tools/m42-dev/m42-dev.sh milestones FEAT-123
 ```
 
 ### Custom Templates
@@ -302,7 +302,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run autonomous development
         run: |
-          ./tools/claude-dev/claude-dev.sh start FEAT-${{ github.event.issue.number }}
+          ./tools/m42-dev/m42-dev.sh start FEAT-${{ github.event.issue.number }}
 ```
 
 ## 🐛 Troubleshooting
@@ -312,9 +312,9 @@ jobs:
 **Script not found**
 ```bash
 # Check installation
-ls -la tools/claude-dev/
+ls -la tools/m42-dev/
 # Ensure execute permissions
-chmod +x tools/claude-dev/claude-dev.sh
+chmod +x tools/m42-dev/m42-dev.sh
 ```
 
 **Milestone stuck**
@@ -322,7 +322,7 @@ chmod +x tools/claude-dev/claude-dev.sh
 # Check logs
 cat specs/features/FEAT-XXX/.claude-workflow/milestones/M1/reviews/review_*.json
 # Reset and retry
-tools/claude-dev/claude-dev.sh reset FEAT-XXX M1
+tools/m42-dev/m42-dev.sh reset FEAT-XXX M1
 ```
 
 **Dependencies not working**
@@ -338,7 +338,7 @@ cat specs/features/FEAT-XXX/.claude-workflow/state/global.json
 ```bash
 # Enable verbose logging
 export CLAUDE_DEV_DEBUG=1
-tools/claude-dev/claude-dev.sh start FEAT-XXX M1
+tools/m42-dev/m42-dev.sh start FEAT-XXX M1
 ```
 
 ## 🤝 Contributing
