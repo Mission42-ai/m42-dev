@@ -564,7 +564,8 @@ initialize_milestone_checklist() {
     echo "📋 Extracting checklist for milestone $milestone..."
     
     if command -v yq &> /dev/null; then
-        yq eval ".milestones[] | select(.id == \"$milestone\") | .implementation_checklist" "$REQUIREMENTS_FILE" \
+        # Convert YAML checklist to JSON format
+        yq eval -o=json ".milestones[] | select(.id == \"$milestone\") | .implementation_checklist" "$REQUIREMENTS_FILE" \
             > "$milestone_dir/state/checklist.json" 2>/dev/null
         
         if [[ ! -s "$milestone_dir/state/checklist.json" ]]; then
@@ -672,10 +673,22 @@ run_development_phase() {
     
     # Execute Claude with extended timeout
     echo "Running Claude Code..."
-    echo "$dev_context" | $CLAUDE_CMD --print \
-        > "$output_file" 2>&1 || true
+    echo "⏳ This may take several minutes..."
     
+    # Save any errors separately
+    local error_file="$MILESTONE_DIR/iterations/errors_${iteration}.txt"
+    
+    if echo "$dev_context" | $CLAUDE_CMD --print > "$output_file" 2>"$error_file"; then
+        echo "✅ Development phase completed"
+    else
+        echo "⚠️  Development phase had errors (see $error_file)"
+    fi
+    
+    # Show brief summary of what was done
     echo "Development output saved to: $output_file"
+    if [[ -f "$output_file" ]]; then
+        echo "Summary: $(head -n 5 "$output_file" | grep -E '^(Created|Modified|Implemented)' || echo "See output file for details")"
+    fi
     
     # Update checklist based on output
     update_checklist_from_output $iteration
@@ -751,11 +764,28 @@ run_review_phase() {
     
     # Execute review
     echo "Running Claude Code for review..."
-    local review_result=$(echo "$review_context" | $CLAUDE_CMD --print 2>/dev/null || echo '{"quality_passed": false, "issues": ["Review failed"]}')
+    
+    # Save review context for debugging
+    echo "$review_context" > "$MILESTONE_DIR/reviews/context_${iteration}.txt"
+    
+    # Run Claude and capture both output and errors
+    local review_result=$(echo "$review_context" | $CLAUDE_CMD --print 2>"$MILESTONE_DIR/reviews/errors_${iteration}.txt")
+    
+    if [[ -z "$review_result" ]]; then
+        echo "❌ Claude review failed. Check errors in reviews/errors_${iteration}.txt"
+        review_result='{"quality_passed": false, "issues": ["Claude review execution failed - check error log"]}'
+    fi
+    
+    # Save raw output for debugging
+    echo "$review_result" > "$MILESTONE_DIR/reviews/raw_${iteration}.txt"
     
     # Parse and save result
-    echo "$review_result" | jq '.' > "$review_output" 2>/dev/null || \
-        echo '{"quality_passed": false, "issues": ["Review parsing failed"]}' > "$review_output"
+    if echo "$review_result" | jq '.' > "$review_output" 2>/dev/null; then
+        echo "✅ Review completed successfully"
+    else
+        echo "❌ Failed to parse review JSON"
+        echo '{"quality_passed": false, "issues": ["Review output was not valid JSON"]}' > "$review_output"
+    fi
     
     cat "$review_output"
 }
