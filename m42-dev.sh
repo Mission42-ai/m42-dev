@@ -12,7 +12,7 @@ set -euo pipefail
 
 # Tool directories
 TOOL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$TOOL_DIR/../.." && pwd )"
+PROJECT_ROOT="$TOOL_DIR"  # Script is in project root
 FEATURES_DIR="$PROJECT_ROOT/specs/features"
 
 # Feature-specific variables (set by set_feature_context)
@@ -28,7 +28,7 @@ PAUSE_BETWEEN_ITERATIONS=5
 
 # Claude Code settings
 CLAUDE_CMD="claude"
-CLAUDE_FLAGS="--no-update-files --dangerously-skip-permissions"
+CLAUDE_FLAGS=""
 
 # Milestone variables
 CURRENT_MILESTONE=""
@@ -45,7 +45,7 @@ set_feature_context() {
     FEATURE_DIR="$FEATURES_DIR/$feature_id"
     WORK_DIR="$FEATURE_DIR/.claude-workflow"
     REQUIREMENTS_FILE="$FEATURE_DIR/requirements.yaml"
-    PROJECT_CONTEXT_FILE="$FEATURE_DIR/project-context.md"
+    PROJECT_CONTEXT_FILE="$FEATURE_DIR/feature-context.md"
 }
 
 # Initialize new feature
@@ -276,65 +276,189 @@ global_definition_of_done:
   - "Security scan passed"
 EOF
 
-    # Project context template
+    # Feature context template
     cat > "$PROJECT_CONTEXT_FILE" <<'EOF'
-# Project Context
+# Feature Context
 
-## m42-core Architecture Overview
-This feature is part of the m42-core platform and must follow these architectural principles:
+## Feature Overview
+[Brief description of what this feature does and why it's needed]
 
-### Core Patterns
-1. **Event Sourcing**: All state changes through events
-2. **CQRS**: Separate command and query models
-3. **Domain-Driven Design**: Rich domain models with business logic
-4. **Hexagonal Architecture**: Clear separation of concerns
+## Integration with Existing System
+### Dependencies
+- **Modules/Features**: [List modules this feature depends on]
+- **External Services**: [List external services used]
+- **Libraries**: [Feature-specific libraries needed]
 
-### Technical Stack
-- TypeScript with strict mode
-- Node.js 20+
-- PostgreSQL for persistence
-- Prisma ORM for data access
-- Jest for testing
-- Express/Fastify for HTTP layer
+### Exposed APIs
+[List APIs this feature provides to other parts of the system]
 
-### Code Organization
-```
-src/
-  core/
-    domain/
-      [feature]/
-        aggregates/     # Domain aggregates
-        events/         # Domain events
-        value-objects/  # Value objects
-        repositories/   # Repository interfaces
-    application/
-      [feature]/
-        commands/       # Command DTOs and handlers
-        queries/        # Query DTOs and handlers
-        services/       # Application services
-    infrastructure/
-      persistence/      # Repository implementations
-      http/            # REST controllers
-```
+### Events
+- **Published**: [Events this feature emits]
+- **Consumed**: [Events this feature listens to]
 
-## Feature-Specific Context
-[Add any feature-specific requirements, constraints, or integration points here]
+## Domain Model
+### Entities
+[Feature-specific entities and their relationships]
 
-## Integration Points
-- Which existing modules does this feature interact with?
-- What events does it publish/consume?
-- External service dependencies?
+### Business Rules
+[Feature-specific business rules and invariants]
 
-## Non-Functional Requirements
-- Performance targets
-- Security considerations
-- Scalability requirements
-- Monitoring and observability needs
+### Value Objects
+[Feature-specific value objects]
+
+## Technical Constraints
+### Performance
+[Specific performance requirements]
+
+### Security
+[Feature-specific security requirements]
+
+### Scalability
+[How this feature should handle scale]
+
+## Data Model
+### Schema
+[Database tables/collections for this feature]
+
+### Migration Strategy
+[How to handle data migration if needed]
+
+## Testing Requirements
+### Unit Tests
+[Key scenarios to test]
+
+### Integration Tests
+[Integration points to test]
+
+### E2E Tests
+[User journeys to test]
+
+## Deployment & Operations
+### Configuration
+[Feature-specific configuration]
+
+### Feature Flags
+[Flags to control feature rollout]
+
+### Monitoring
+[Metrics and alerts specific to this feature]
+
+## Notes
+[Any important decisions, trade-offs, or considerations]
 EOF
 
     echo "📄 Created template files:"
     echo "  - $REQUIREMENTS_FILE"
     echo "  - $PROJECT_CONTEXT_FILE"
+}
+
+# =============================================================================
+# PROJECT MANAGEMENT
+# =============================================================================
+
+# Initialize project structure
+init_project() {
+    local force="${1:-}"
+    
+    echo "🏗️  Initializing M42 project structure..."
+    
+    # Check if specs directory already exists
+    if [[ -d "$PROJECT_ROOT/specs" ]] && [[ "$force" != "--force" ]]; then
+        echo "⚠️  Project already initialized (specs/ directory exists)"
+        echo "Use '$0 init-project --force' to reinitialize and regenerate project-context.md"
+        exit 1
+    fi
+    
+    # Create directory structure
+    mkdir -p "$PROJECT_ROOT/specs/features"
+    mkdir -p "$PROJECT_ROOT/specs/logs"
+    echo "📁 Created project structure:"
+    echo "  - specs/"
+    echo "  - specs/features/"
+    echo "  - specs/logs/"
+    
+    # Generate project context using Claude
+    echo ""
+    echo "🔍 Analyzing project codebase..."
+    generate_project_context
+    
+    echo ""
+    echo "✅ Project initialized successfully!"
+    echo ""
+    echo "📝 Next steps:"
+    echo "1. Review and enhance specs/project-context.md"
+    echo "2. Create your first feature: $0 init <feature-id>"
+}
+
+# Generate project context using Claude
+generate_project_context() {
+    local context_file="$PROJECT_ROOT/specs/project-context.md"
+    local template_file="$TOOL_DIR/templates/project-context-template.md"
+    
+    # Check if template exists
+    if [[ ! -f "$template_file" ]]; then
+        echo "❌ Template not found: $template_file"
+        echo "Creating basic project-context.md..."
+        echo "# Project Context" > "$context_file"
+        echo "" >> "$context_file"
+        echo "Please fill out this file with your project details." >> "$context_file"
+        return
+    fi
+    
+    # Create analysis prompt
+    local analysis_prompt=$(cat <<'EOF'
+You are analyzing a software project to create comprehensive documentation. Your task is to:
+
+1. Explore the entire codebase thoroughly
+2. Understand the architecture, patterns, and technologies used
+3. Fill out the project context template with accurate, detailed information
+
+Start by:
+1. Finding and reading key files (README, package.json, Cargo.toml, go.mod, etc.)
+2. Exploring the source code structure
+3. Identifying the tech stack and architecture patterns
+4. Understanding the domain and business logic
+
+Then create a comprehensive project-context.md file based on the template provided.
+
+IMPORTANT: Be thorough and specific. Include actual details from the codebase, not generic placeholders.
+
+Here's the template to fill out:
+
+EOF
+)
+    
+    analysis_prompt+=$'\n'
+    analysis_prompt+="$(cat "$template_file")"
+    analysis_prompt+=$'\n\n'
+    analysis_prompt+="Now analyze this project and create a detailed project-context.md file at: $context_file"
+    
+    # Save analysis prompt for debugging
+    echo "$analysis_prompt" > "$PROJECT_ROOT/specs/logs/analysis-prompt.txt"
+    
+    # Run Claude to analyze project with extended timeout
+    echo "🤖 Running Claude Code to analyze project..."
+    echo "⏳ This may take a few minutes as Claude analyzes your codebase..."
+    
+    # Set extended timeout for this operation (10 minutes)
+    export BASH_DEFAULT_TIMEOUT_MS=600000
+    export BASH_MAX_TIMEOUT_MS=600000
+    
+    echo "$analysis_prompt" | $CLAUDE_CMD --print \
+        > "$PROJECT_ROOT/specs/logs/analysis-output.txt" 2>&1 || {
+            echo "❌ Claude analysis failed. Check specs/logs/analysis-output.txt for details."
+            echo "Creating basic project-context.md..."
+            cp "$template_file" "$context_file"
+            return
+        }
+    
+    # Check if project-context.md was created
+    if [[ -f "$context_file" ]]; then
+        echo "✅ Project context generated: specs/project-context.md"
+    else
+        echo "⚠️  Project context generation incomplete. Creating from template..."
+        cp "$template_file" "$context_file"
+    fi
 }
 
 # List all features
@@ -546,10 +670,9 @@ run_development_phase() {
     # Save context for debugging
     echo "$dev_context" > "$MILESTONE_DIR/iterations/context_${iteration}.md"
     
-    # Execute Claude
+    # Execute Claude with extended timeout
     echo "Running Claude Code..."
-    $CLAUDE_CMD $CLAUDE_FLAGS \
-        --prompt "$dev_context" \
+    echo "$dev_context" | $CLAUDE_CMD --print \
         > "$output_file" 2>&1 || true
     
     echo "Development output saved to: $output_file"
@@ -628,9 +751,7 @@ run_review_phase() {
     
     # Execute review
     echo "Running Claude Code for review..."
-    local review_result=$($CLAUDE_CMD $CLAUDE_FLAGS \
-        --prompt "$review_context" \
-        2>/dev/null || echo '{"quality_passed": false, "issues": ["Review failed"]}')
+    local review_result=$(echo "$review_context" | $CLAUDE_CMD --print 2>/dev/null || echo '{"quality_passed": false, "issues": ["Review failed"]}')
     
     # Parse and save result
     echo "$review_result" | jq '.' > "$review_output" 2>/dev/null || \
@@ -987,6 +1108,10 @@ main() {
     local command="${1:-}"
     
     case "$command" in
+        "init-project")
+            init_project "${2:-}"
+            ;;
+            
         "init")
             init_feature "${2:-}"
             ;;
@@ -1076,9 +1201,12 @@ main() {
             ;;
             
         *)
-            echo "🤖 Claude Autonomous Development Tool"
+            echo "🤖 M42 Dev - Autonomous Development Tool"
             echo ""
             echo "Usage: $0 <command> [options]"
+            echo ""
+            echo "Project Management:"
+            echo "  init-project [--force]         - Initialize project structure and analyze codebase"
             echo ""
             echo "Feature Management:"
             echo "  init <feature-id>              - Initialize new feature"
@@ -1093,11 +1221,20 @@ main() {
             echo "  reset <feature-id> [milestone] - Reset feature or milestone"
             echo ""
             echo "Examples:"
+            echo "  $0 init-project               - Set up project for first time"
             echo "  $0 init FEAT-123-auth         - Create new feature"
             echo "  $0 start FEAT-123-auth M1     - Start first milestone"
             echo "  $0 status FEAT-123-auth       - Check progress"
             echo "  $0 start FEAT-123-auth M4     - Start M4 (if parallel)"
-            exit 1
+            
+            # Exit with 0 for help, 1 for invalid command
+            if [[ "$command" == "--help" ]] || [[ "$command" == "-h" ]] || [[ -z "$command" ]]; then
+                exit 0
+            else
+                echo ""
+                echo "❌ Unknown command: $command"
+                exit 1
+            fi
             ;;
     esac
 }

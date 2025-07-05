@@ -167,9 +167,9 @@ milestones:
 
 ## Getting Help
 
-- **Discord**: [Join our community](https://discord.gg/m42-dev)
+- **Discord**: [Join our community](https://community.mission42.ai)
 - **Discussions**: Use GitHub Discussions for questions
-- **Email**: support@mission42.ai
+- **Email**: hello@mission42.ai
 
 ## Recognition
 
