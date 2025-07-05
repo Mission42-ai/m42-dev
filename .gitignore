@@ -1,0 +1,32 @@
+# Claude Autonomous Development Tool
+.claude-workflow/
+*.claude-backup
+config.local.sh
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Test outputs
+test-output/
+coverage/
+
+# Dependencies (if any future additions)
+node_modules/
+vendor/

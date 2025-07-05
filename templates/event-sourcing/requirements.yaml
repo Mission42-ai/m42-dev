@@ -1,0 +1,224 @@
+# ===== FEATURE OVERVIEW =====
+feature:
+  id: "FEAT-XXX"
+  name: "Event-Sourced Feature Name"
+  version: "1.0.0"
+  owner: "@your-team"
+  target_release: "v1.0.0"
+  
+  description: |
+    Brief description of what this feature does.
+    This template is optimized for Event Sourcing and CQRS architectures.
+  
+  business_value:
+    - "Value proposition focusing on audit trail"
+    - "Event-driven capabilities"
+    - "Time-travel and replay functionality"
+
+# ===== HIGH-LEVEL REQUIREMENTS =====
+requirements:
+  functional:
+    - id: "FR-1"
+      priority: "P0"
+      description: "Core domain events and business rules"
+      
+    - id: "FR-2"
+      priority: "P0"
+      description: "Command handling and validation"
+      
+    - id: "FR-3"
+      priority: "P1"
+      description: "Query models and projections"
+      
+  technical:
+    - "All state changes through events"
+    - "Event immutability guaranteed"
+    - "CQRS pattern with separate read/write models"
+    - "Event versioning strategy"
+    - "Eventual consistency handling"
+    
+  non_functional:
+    - metric: "event_processing_time"
+      target: "< 100ms"
+    - metric: "projection_lag"
+      target: "< 5 seconds"
+    - metric: "event_store_availability"
+      target: "> 99.99%"
+
+# ===== MILESTONES =====
+milestones:
+  # Milestone 1: Domain Model
+  - id: "M1"
+    name: "Domain Model & Events"
+    description: "Create aggregates, entities, and domain events"
+    dependencies: []
+    estimated_hours: 5
+    
+    implementation_checklist:
+      aggregates:
+        "Create [Feature]Aggregate extending AggregateRoot": "pending"
+        "Implement aggregate invariants": "pending"
+        "Add aggregate factory methods": "pending"
+        
+      domain_events:
+        "Define [Feature]Created event": "pending"
+        "Define [Feature]Updated event": "pending"
+        "Define [Feature]Deleted event": "pending"
+        "Add event metadata (version, timestamp, user)": "pending"
+        
+      value_objects:
+        "Create required value objects": "pending"
+        "Implement value object validation": "pending"
+        
+      event_sourcing:
+        "Implement apply() methods for each event": "pending"
+        "Add event replay logic": "pending"
+        "Implement snapshot support": "pending"
+    
+    acceptance_tests:
+      - scenario: "Aggregate creation and event emission"
+        given: ["Valid creation data"]
+        when: ["Aggregate.create() called"]
+        then: ["Aggregate created", "Creation event emitted", "State correctly applied"]
+        
+      - scenario: "Event replay reconstruction"
+        given: ["Series of historical events"]
+        when: ["Events replayed on aggregate"]
+        then: ["Aggregate state matches expected", "All invariants maintained"]
+    
+    definition_of_done:
+      - "All domain events defined with schemas"
+      - "Aggregate tests cover all state transitions"
+      - "Event versioning strategy documented"
+      - "Domain invariants enforced"
+
+  # Milestone 2: Command Side
+  - id: "M2"
+    name: "Commands & Command Handlers"
+    description: "CQRS write side implementation"
+    dependencies: ["M1"]
+    estimated_hours: 4
+    
+    implementation_checklist:
+      commands:
+        "Create Create[Feature]Command": "pending"
+        "Create Update[Feature]Command": "pending"
+        "Create Delete[Feature]Command": "pending"
+        "Add command validation": "pending"
+        
+      command_handlers:
+        "Implement Create[Feature]CommandHandler": "pending"
+        "Implement Update[Feature]CommandHandler": "pending"
+        "Implement Delete[Feature]CommandHandler": "pending"
+        "Add idempotency handling": "pending"
+        
+      event_store_integration:
+        "Configure event store connection": "pending"
+        "Implement event persistence": "pending"
+        "Add optimistic concurrency control": "pending"
+        "Set up event publishing": "pending"
+    
+    acceptance_tests:
+      - scenario: "Command execution produces events"
+        given: ["Valid command"]
+        when: ["Command handler processes"]
+        then: ["Events persisted", "Aggregate updated", "Events published"]
+
+  # Milestone 3: Query Side
+  - id: "M3"
+    name: "Queries & Projections"
+    description: "CQRS read side implementation"
+    dependencies: ["M1"]  # Can work parallel to M2
+    estimated_hours: 4
+    
+    implementation_checklist:
+      projections:
+        "Create [Feature]Projection": "pending"
+        "Implement event handlers for projection": "pending"
+        "Add projection rebuild capability": "pending"
+        "Create materialized views": "pending"
+        
+      queries:
+        "Create Get[Feature]ByIdQuery": "pending"
+        "Create List[Feature]Query with filtering": "pending"
+        "Create Search[Feature]Query": "pending"
+        
+      query_handlers:
+        "Implement query handlers": "pending"
+        "Add caching layer": "pending"
+        "Optimize query performance": "pending"
+        
+      read_models:
+        "Design denormalized read models": "pending"
+        "Implement read model repositories": "pending"
+
+  # Milestone 4: Event Handlers
+  - id: "M4"
+    name: "Event Processing & Integration"
+    description: "Process events and integrate with other systems"
+    dependencies: ["M2"]
+    estimated_hours: 3
+    
+    implementation_checklist:
+      event_handlers:
+        "Create process managers/sagas": "pending"
+        "Implement event-driven workflows": "pending"
+        "Add compensating transactions": "pending"
+        
+      integration_events:
+        "Map domain events to integration events": "pending"
+        "Implement event publishing": "pending"
+        "Add event schema registry": "pending"
+        
+      monitoring:
+        "Add event processing metrics": "pending"
+        "Implement event replay tools": "pending"
+        "Create event debugging utilities": "pending"
+
+  # Milestone 5: Testing
+  - id: "M5"
+    name: "Event Sourcing Tests"
+    description: "Specialized testing for event-sourced systems"
+    dependencies: ["M1"]
+    estimated_hours: 4
+    
+    implementation_checklist:
+      unit_tests:
+        "Test aggregate behavior with given-when-then": "pending"
+        "Test event application": "pending"
+        "Test command validation": "pending"
+        
+      integration_tests:
+        "Test event store persistence": "pending"
+        "Test projection consistency": "pending"
+        "Test event replay": "pending"
+        
+      scenario_tests:
+        "Create business scenario tests": "pending"
+        "Test compensating transactions": "pending"
+        "Test eventual consistency": "pending"
+
+# ===== PARALLEL EXECUTION STRATEGY =====
+parallel_execution:
+  max_concurrent_milestones: 3
+  coordination:
+    - "M1 must complete first (foundation)"
+    - "M2 and M3 can run in parallel after M1"
+    - "M4 requires M2"
+    - "M5 can start with M1 and continue throughout"
+  
+  suggested_assignment:
+    - agent_1: ["M1", "M2", "M4"]  # Command side
+    - agent_2: ["M3"]              # Query side
+    - agent_3: ["M5"]              # Testing
+
+# ===== GLOBAL DEFINITION OF DONE =====
+global_definition_of_done:
+  - "All milestones completed"
+  - "Event sourcing patterns correctly implemented"
+  - "CQRS separation maintained"
+  - "All events versioned and documented"
+  - "Projections tested for consistency"
+  - "Event replay capability verified"
+  - "Performance benchmarks met"
+  - "Integration events published correctly"

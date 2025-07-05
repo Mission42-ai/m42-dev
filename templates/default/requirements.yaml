@@ -1,0 +1,152 @@
+# ===== FEATURE OVERVIEW =====
+feature:
+  id: "FEAT-XXX"
+  name: "Feature Name Here"
+  version: "1.0.0"
+  owner: "@your-team"
+  target_release: "v1.0.0"
+  
+  description: |
+    Brief description of what this feature does.
+    Why is it needed? What problem does it solve?
+  
+  business_value:
+    - "Value proposition 1"
+    - "Value proposition 2"
+    - "Value proposition 3"
+
+# ===== HIGH-LEVEL REQUIREMENTS =====
+requirements:
+  functional:
+    - id: "FR-1"
+      priority: "P0"
+      description: "Core functionality that MUST work"
+      
+    - id: "FR-2"
+      priority: "P1"
+      description: "Important but not critical functionality"
+      
+  technical:
+    - "Technical constraint or requirement 1"
+    - "Technical constraint or requirement 2"
+    - "Coding standards to follow"
+    
+  non_functional:
+    - metric: "response_time_p95"
+      target: "< 200ms"
+    - metric: "availability"
+      target: "> 99.9%"
+    - metric: "memory_usage"
+      target: "< 512MB"
+
+# ===== MILESTONES =====
+milestones:
+  # Milestone 1: Foundation
+  - id: "M1"
+    name: "Core Foundation"
+    description: "Set up basic infrastructure and core components"
+    dependencies: []  # No dependencies, can start immediately
+    estimated_hours: 4
+    
+    implementation_checklist:
+      setup:
+        "Create project structure": "pending"
+        "Set up configuration": "pending"
+        "Initialize database schema": "pending"
+        
+      core_components:
+        "Create main service class": "pending"
+        "Implement data models": "pending"
+        "Set up dependency injection": "pending"
+    
+    acceptance_tests:
+      - scenario: "Basic setup validation"
+        given: ["Fresh installation"]
+        when: ["System starts"]
+        then: ["All components initialize", "No errors in logs"]
+    
+    definition_of_done:
+      - "All checklist items completed"
+      - "Unit tests pass"
+      - "Code compiles without warnings"
+      - "Basic documentation written"
+
+  # Milestone 2: Business Logic
+  - id: "M2"
+    name: "Core Business Logic"
+    description: "Implement the main feature functionality"
+    dependencies: ["M1"]  # Needs foundation first
+    estimated_hours: 6
+    
+    implementation_checklist:
+      features:
+        "Implement feature A": "pending"
+        "Implement feature B": "pending"
+        "Add validation logic": "pending"
+        
+      integration:
+        "Connect to external services": "pending"
+        "Implement error handling": "pending"
+        "Add logging": "pending"
+    
+    acceptance_tests:
+      - scenario: "Feature A works correctly"
+        given: ["Valid input data"]
+        when: ["Feature A is triggered"]
+        then: ["Expected output produced", "State updated correctly"]
+
+  # Milestone 3: API/Interface
+  - id: "M3"
+    name: "External Interface"
+    description: "Create API or UI for the feature"
+    dependencies: ["M2"]  # Needs business logic
+    estimated_hours: 4
+    
+    implementation_checklist:
+      api:
+        "Create REST endpoints": "pending"
+        "Add authentication": "pending"
+        "Implement rate limiting": "pending"
+        
+      documentation:
+        "Write API documentation": "pending"
+        "Create usage examples": "pending"
+
+  # Milestone 4: Testing
+  - id: "M4"
+    name: "Comprehensive Testing"
+    description: "Full test coverage"
+    dependencies: ["M1"]  # Can start after foundation
+    estimated_hours: 4
+    
+    implementation_checklist:
+      unit_tests:
+        "Test core components": "pending"
+        "Test business logic": "pending"
+        "Test edge cases": "pending"
+        
+      integration_tests:
+        "Test API endpoints": "pending"
+        "Test external integrations": "pending"
+        "Performance tests": "pending"
+
+# ===== PARALLEL EXECUTION STRATEGY =====
+parallel_execution:
+  max_concurrent_milestones: 2
+  coordination:
+    - "M1 must complete before M2, M3"
+    - "M4 can run parallel to M2, M3 after M1"
+  
+  suggested_assignment:
+    - agent_1: ["M1", "M2", "M3"]  # Main development path
+    - agent_2: ["M4"]              # Testing in parallel
+
+# ===== GLOBAL DEFINITION OF DONE =====
+global_definition_of_done:
+  - "All milestones completed"
+  - "All tests passing with >80% coverage"
+  - "Code review completed"
+  - "Documentation updated"
+  - "Performance benchmarks met"
+  - "Security scan passed"
+  - "Deployed to staging environment"
