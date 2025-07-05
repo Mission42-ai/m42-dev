@@ -1,0 +1,26 @@
+{
+  "name": "m42-dev-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for m42-dev autonomous development tool",
+  "author": "m42-dev",
+  "license": "MIT",
+  "runtime": "node",
+  "main": "dist/index.js",
+  "capabilities": {
+    "tools": true
+  },
+  "environment": {
+    "M42_PROJECT_ROOT": {
+      "description": "Project root directory",
+      "default": "."
+    },
+    "M42_PATH": {
+      "description": "Path to m42-dev.sh script",
+      "default": "./m42-dev.sh"
+    },
+    "LOG_LEVEL": {
+      "description": "Logging level (debug, info, warn, error)",
+      "default": "info"
+    }
+  }
+}
