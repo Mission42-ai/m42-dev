@@ -2,6 +2,26 @@
 
 A powerful orchestration system that enables fully autonomous feature development using Claude Code. This tool manages complex feature implementations through milestone-based development with automatic dependency resolution, parallel execution, and quality gates.
 
+## 🏗️ Project Structure
+
+```
+m42-dev/
+├── m42-dev              # Main entry point (executable)
+├── m42-dev.sh          # Symlink for backward compatibility
+├── lib/                # Modular library components
+│   ├── config.sh      # Configuration and constants
+│   ├── commands/      # User-facing commands
+│   ├── core/         # Core functionality
+│   ├── milestone/    # Milestone management
+│   ├── review/       # Code review logic
+│   └── utils/        # Utilities
+├── templates/          # Project and feature templates
+├── prompts/           # Claude prompts for different phases
+└── specs/             # Project specifications storage
+```
+
+The tool has been refactored into a clean, modular architecture where each component has a single responsibility. See `lib/README.md` for details on the library structure.
+
 ## 🌟 Features
 
 - **Autonomous Development**: Claude Code agents work independently on feature milestones

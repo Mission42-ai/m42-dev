@@ -1,0 +1,128 @@
+#!/bin/bash
+# m42-dev - M42 Autonomous Development Tool
+# 
+# Clean, modular entry point for feature-based autonomous development
+
+set -euo pipefail
+
+# Get the directory of this script
+M42_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export M42_ROOT
+
+# Source configuration
+source "$M42_ROOT/lib/config.sh"
+
+# Source utilities
+source "$M42_LIB_DIR/utils/logging.sh"
+source "$M42_LIB_DIR/core/context.sh"
+
+# Source commands
+source "$M42_LIB_DIR/commands/init_project.sh"
+source "$M42_LIB_DIR/commands/init_feature.sh"
+source "$M42_LIB_DIR/commands/list_features.sh"
+source "$M42_LIB_DIR/commands/status.sh"
+source "$M42_LIB_DIR/commands/start.sh"
+source "$M42_LIB_DIR/commands/recover.sh"
+source "$M42_LIB_DIR/commands/reset.sh"
+source "$M42_LIB_DIR/milestone/info.sh"
+
+# Show help
+show_help() {
+    echo "${EMOJI_ROBOT} M42 Dev - Autonomous Development Tool"
+    echo ""
+    echo "Usage: m42-dev <command> [options]"
+    echo ""
+    echo "Project Management:"
+    echo "  init-project [--force]         - Initialize project structure and analyze codebase"
+    echo ""
+    echo "Feature Management:"
+    echo "  init <feature-id>              - Initialize new feature"
+    echo "  list                           - List all features"
+    echo ""
+    echo "Development:"
+    echo "  start <feature-id> <milestone> - Start milestone development"
+    echo "  status [feature-id] [milestone] - Show status"
+    echo "  milestones <feature-id>        - List milestones for feature"
+    echo ""
+    echo "Utilities:"
+    echo "  reset <feature-id> [milestone] - Reset feature or milestone"
+    echo "  recover <feature-id> <milestone> [action] - Recover from failures"
+    echo ""
+    echo "Recovery actions:"
+    echo "  review   - Re-run review for last iteration"
+    echo "  continue - Continue development from current state"
+    echo "  next     - Force advance to next iteration"
+    echo ""
+    echo "Examples:"
+    echo "  m42-dev init-project               - Set up project for first time"
+    echo "  m42-dev init FEAT-123-auth         - Create new feature"
+    echo "  m42-dev start FEAT-123-auth M1     - Start first milestone"
+    echo "  m42-dev status FEAT-123-auth       - Check progress"
+    echo "  m42-dev start FEAT-123-auth M4     - Start M4 (if parallel)"
+    echo "  m42-dev recover FEAT-123 M1 review - Re-run failed review"
+    echo ""
+    echo "Environment Variables:"
+    echo "  M42_MAX_ITERATIONS             - Max development iterations (default: 10)"
+    echo "  M42_PAUSE_BETWEEN_ITERATIONS   - Seconds between iterations (default: 5)"
+    echo "  M42_USE_PARALLEL_REVIEW        - Use parallel subagent review (default: true)"
+    echo "  M42_DEBUG                      - Enable debug logging (default: false)"
+}
+
+# Main command handler
+main() {
+    local command="${1:-}"
+    
+    case "$command" in
+        "init-project")
+            init_project "${2:-}"
+            ;;
+            
+        "init")
+            init_feature "${2:-}"
+            ;;
+            
+        "list")
+            list_features
+            ;;
+            
+        "start")
+            start_milestone "${2:-}" "${3:-}"
+            ;;
+            
+        "status")
+            show_status "${2:-}" "${3:-}"
+            ;;
+            
+        "milestones")
+            list_milestones "${2:-}"
+            ;;
+            
+        "recover")
+            recover_from_failure "${2:-}" "${3:-}" "${4:-}"
+            ;;
+            
+        "reset")
+            reset_feature "${2:-}" "${3:-}"
+            ;;
+            
+        "--help"|"-h"|"help")
+            show_help
+            exit 0
+            ;;
+            
+        "")
+            show_help
+            exit 0
+            ;;
+            
+        *)
+            log_error "Unknown command: $command"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main
+main "$@"

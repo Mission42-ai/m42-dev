@@ -1,0 +1,1189 @@
+#!/bin/bash
+# m42-dev.sh - M42 Autonomous Development Tool
+# 
+# Tool für Feature-basierte autonome Entwicklung mit Claude Code CLI
+# Unterstützt parallele Milestone-Entwicklung mit State Management
+
+set -euo pipefail
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Tool directories
+TOOL_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$TOOL_DIR"  # Script is in project root
+FEATURES_DIR="$PROJECT_ROOT/specs/features"
+TEMPLATES_DIR="$TOOL_DIR/templates"
+
+# Feature-specific variables (set by set_feature_context)
+CURRENT_FEATURE=""
+FEATURE_DIR=""
+WORK_DIR=""
+REQUIREMENTS_FILE=""
+PROJECT_CONTEXT_FILE=""
+
+# Development settings
+MAX_ITERATIONS=10
+PAUSE_BETWEEN_ITERATIONS=5
+
+# Claude Code settings
+CLAUDE_CMD="claude"
+
+# Load prompt utilities
+PROMPTS_DIR="$TOOL_DIR/prompts"
+source "$PROMPTS_DIR/load-prompt.sh"
+CLAUDE_FLAGS=""
+
+# Milestone variables
+CURRENT_MILESTONE=""
+MILESTONE_DIR=""
+
+# =============================================================================
+# FEATURE MANAGEMENT
+# =============================================================================
+
+# Set feature context
+set_feature_context() {
+    local feature_id="$1"
+    CURRENT_FEATURE="$feature_id"
+    FEATURE_DIR="$FEATURES_DIR/$feature_id"
+    WORK_DIR="$FEATURE_DIR/.claude-workflow"
+    REQUIREMENTS_FILE="$FEATURE_DIR/requirements.yaml"
+    PROJECT_CONTEXT_FILE="$FEATURE_DIR/feature-context.md"
+}
+
+# Initialize new feature
+init_feature() {
+    local feature_id="${1:-}"
+    
+    if [[ -z "$feature_id" ]]; then
+        echo "❌ Error: Feature ID required"
+        echo "Usage: $0 init <feature-id>"
+        echo "Example: $0 init FEAT-123-new-auth-system"
+        exit 1
+    fi
+    
+    echo "🆕 Initializing feature: $feature_id"
+    
+    set_feature_context "$feature_id"
+    
+    if [[ -d "$FEATURE_DIR" ]]; then
+        echo "⚠️  Feature $feature_id already exists"
+        echo "Use '$0 reset $feature_id' to start over"
+        exit 1
+    fi
+    
+    # Create feature directory
+    mkdir -p "$FEATURE_DIR"
+    
+    # Create template files
+    create_feature_templates "$feature_id"
+    
+    echo "✅ Feature $feature_id initialized!"
+    echo ""
+    echo "📝 Next steps:"
+    echo "1. Edit $REQUIREMENTS_FILE"
+    echo "2. Edit $PROJECT_CONTEXT_FILE"
+    echo "3. Run: $0 start $feature_id M1"
+}
+
+# Create feature templates
+create_feature_templates() {
+    local feature_id="$1"
+    
+    # Check if templates exist
+    local req_template="$TEMPLATES_DIR/feature/requirements.yaml"
+    local ctx_template="$TEMPLATES_DIR/feature/feature-context.md"
+    
+    if [[ ! -f "$req_template" ]]; then
+        echo "❌ Template not found: $req_template"
+        echo "Please ensure templates directory is properly set up"
+        exit 1
+    fi
+    
+    if [[ ! -f "$ctx_template" ]]; then
+        echo "❌ Template not found: $ctx_template"
+        echo "Please ensure templates directory is properly set up"
+        exit 1
+    fi
+    
+    # Copy and process requirements template
+    sed "s/{{FEATURE_ID}}/$feature_id/g" "$req_template" > "$REQUIREMENTS_FILE"
+    
+    # Copy feature context template
+    cp "$ctx_template" "$PROJECT_CONTEXT_FILE"
+    
+    echo "📄 Created template files:"
+    echo "  - $REQUIREMENTS_FILE"
+    echo "  - $PROJECT_CONTEXT_FILE"
+}
+
+# =============================================================================
+# PROJECT MANAGEMENT
+# =============================================================================
+
+# Initialize project structure
+init_project() {
+    local force="${1:-}"
+    
+    echo "🏗️  Initializing M42 project structure..."
+    
+    # Check if specs directory already exists
+    if [[ -d "$PROJECT_ROOT/specs" ]] && [[ "$force" != "--force" ]]; then
+        echo "⚠️  Project already initialized (specs/ directory exists)"
+        echo "Use '$0 init-project --force' to reinitialize and regenerate project-context.md"
+        exit 1
+    fi
+    
+    # Create directory structure
+    mkdir -p "$PROJECT_ROOT/specs/features"
+    mkdir -p "$PROJECT_ROOT/specs/logs"
+    echo "📁 Created project structure:"
+    echo "  - specs/"
+    echo "  - specs/features/"
+    echo "  - specs/logs/"
+    
+    # Generate project context using Claude
+    echo ""
+    echo "🔍 Analyzing project codebase..."
+    generate_project_context
+    
+    echo ""
+    echo "✅ Project initialized successfully!"
+    echo ""
+    echo "📝 Next steps:"
+    echo "1. Review and enhance specs/project-context.md"
+    echo "2. Create your first feature: $0 init <feature-id>"
+}
+
+# Generate project context using Claude
+generate_project_context() {
+    local context_file="$PROJECT_ROOT/specs/project-context.md"
+    local template_file="$TEMPLATES_DIR/project/project-context-template.md"
+    
+    # Check if template exists
+    if [[ ! -f "$template_file" ]]; then
+        echo "❌ Template not found: $template_file"
+        echo "Creating basic project-context.md..."
+        echo "# Project Context" > "$context_file"
+        echo "" >> "$context_file"
+        echo "Please fill out this file with your project details." >> "$context_file"
+        return
+    fi
+    
+    # Load template content
+    local template_content=$(cat "$template_file")
+    
+    # Create analysis prompt using the external prompt file
+    local analysis_prompt=$(load_prompt "$PROMPTS_DIR/project/analyze-project.md" \
+        "TEMPLATE_CONTENT=$template_content" \
+        "CONTEXT_FILE=$context_file")
+    
+    # Save analysis prompt for debugging
+    echo "$analysis_prompt" > "$PROJECT_ROOT/specs/logs/analysis-prompt.txt"
+    
+    # Run Claude to analyze project with extended timeout
+    echo "🤖 Running Claude Code to analyze project..."
+    echo "⏳ This may take a few minutes as Claude analyzes your codebase..."
+    
+    # Set extended timeout for this operation (10 minutes)
+    export BASH_DEFAULT_TIMEOUT_MS=600000
+    export BASH_MAX_TIMEOUT_MS=600000
+    
+    echo "$analysis_prompt" | $CLAUDE_CMD --print \
+        > "$PROJECT_ROOT/specs/logs/analysis-output.txt" 2>&1 || {
+            echo "❌ Claude analysis failed. Check specs/logs/analysis-output.txt for details."
+            echo "Creating basic project-context.md..."
+            cp "$template_file" "$context_file"
+            return
+        }
+    
+    # Check if project-context.md was created
+    if [[ -f "$context_file" ]]; then
+        echo "✅ Project context generated: specs/project-context.md"
+    else
+        echo "⚠️  Project context generation incomplete. Creating from template..."
+        cp "$template_file" "$context_file"
+    fi
+}
+
+# List all features
+list_features() {
+    echo "📋 Available features:"
+    echo ""
+    
+    if [[ ! -d "$FEATURES_DIR" ]] || [[ -z "$(ls -A "$FEATURES_DIR" 2>/dev/null)" ]]; then
+        echo "  No features found."
+        echo "  Create one with: $0 init <feature-id>"
+        return
+    fi
+    
+    for feature_dir in "$FEATURES_DIR"/*/; do
+        if [[ -d "$feature_dir" ]]; then
+            local feature_id=$(basename "$feature_dir")
+            local status="📄 not started"
+            local milestones_info=""
+            
+            if [[ -f "$feature_dir/.claude-workflow/state/global.json" ]]; then
+                local completed=$(jq -r '.milestones_completed | length' "$feature_dir/.claude-workflow/state/global.json" 2>/dev/null || echo "0")
+                local in_progress=$(jq -r '.milestones_in_progress | length' "$feature_dir/.claude-workflow/state/global.json" 2>/dev/null || echo "0")
+                
+                if [[ "$completed" -gt 0 ]] || [[ "$in_progress" -gt 0 ]]; then
+                    status="🚀 active"
+                    milestones_info=" ($completed completed, $in_progress in progress)"
+                fi
+            fi
+            
+            echo "  $feature_id - $status$milestones_info"
+        fi
+    done
+}
+
+# =============================================================================
+# WORKSPACE MANAGEMENT
+# =============================================================================
+
+setup_workspace() {
+    local milestone="${1:-}"
+    
+    if [[ -z "$CURRENT_FEATURE" ]]; then
+        echo "❌ Error: No feature context set"
+        exit 1
+    fi
+    
+    if [[ -z "$milestone" ]]; then
+        echo "🔧 Setting up workspace for feature $CURRENT_FEATURE..."
+        
+        # Create general directories
+        mkdir -p "$WORK_DIR"/{milestones,state,logs}
+        
+        # Check for requirements
+        if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
+            echo "❌ Requirements not found for $CURRENT_FEATURE"
+            echo "Run: $0 init $CURRENT_FEATURE"
+            exit 1
+        fi
+        
+        # Initialize global state
+        if [[ ! -f "$WORK_DIR/state/global.json" ]]; then
+            cat > "$WORK_DIR/state/global.json" <<EOF
+{
+    "feature_id": "$CURRENT_FEATURE",
+    "milestones_completed": [],
+    "milestones_in_progress": [],
+    "global_patterns": {},
+    "start_time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+        fi
+        
+        echo "✅ Workspace ready!"
+    else
+        echo "🔧 Setting up milestone $milestone for $CURRENT_FEATURE..."
+        
+        MILESTONE_DIR="$WORK_DIR/milestones/$milestone"
+        mkdir -p "$MILESTONE_DIR"/{iterations,reviews,state,context}
+        
+        # Initialize milestone checklist
+        initialize_milestone_checklist "$milestone"
+        
+        # Initialize milestone context
+        cat > "$MILESTONE_DIR/context/accumulated.json" <<EOF
+{
+    "milestone_id": "$milestone",
+    "completed_files": [],
+    "implemented_features": [],
+    "established_patterns": {},
+    "dependencies_added": []
+}
+EOF
+        
+        echo "✅ Milestone $milestone ready!"
+    fi
+}
+
+# Initialize milestone checklist from requirements
+initialize_milestone_checklist() {
+    local milestone="$1"
+    local milestone_dir="$WORK_DIR/milestones/$milestone"
+    
+    echo "📋 Extracting checklist for milestone $milestone..."
+    
+    if command -v yq &> /dev/null; then
+        # Convert YAML checklist to JSON format
+        yq eval -o=json ".milestones[] | select(.id == \"$milestone\") | .implementation_checklist" "$REQUIREMENTS_FILE" \
+            > "$milestone_dir/state/checklist.json" 2>/dev/null
+        
+        if [[ ! -s "$milestone_dir/state/checklist.json" ]]; then
+            echo "⚠️  No checklist found for milestone $milestone"
+            echo '{"tasks": {"Initialize": "pending"}}' > "$milestone_dir/state/checklist.json"
+        fi
+    else
+        echo "⚠️  yq not found. Using default checklist."
+        echo '{"tasks": {"Initialize": "pending"}}' > "$milestone_dir/state/checklist.json"
+    fi
+    
+    # Initialize milestone state
+    cat > "$milestone_dir/state/current.json" <<EOF
+{
+    "milestone_id": "$milestone",
+    "current_iteration": 0,
+    "phase": "not_started",
+    "quality_passed": false,
+    "start_time": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+}
+
+# =============================================================================
+# DEVELOPMENT WORKFLOW
+# =============================================================================
+
+run_milestone_development() {
+    local milestone="$1"
+    CURRENT_MILESTONE="$milestone"
+    MILESTONE_DIR="$WORK_DIR/milestones/$milestone"
+    
+    # Check dependencies
+    if ! check_milestone_dependencies "$milestone"; then
+        echo "❌ Dependencies not met for milestone $milestone"
+        echo "Complete required milestones first."
+        exit 1
+    fi
+    
+    # Update global state
+    update_global_state_milestone_start "$milestone"
+    
+    local iteration=1
+    local quality_passed=false
+    
+    echo "🤖 Starting development for $CURRENT_FEATURE - Milestone $milestone"
+    echo "Max iterations: $MAX_ITERATIONS"
+    echo ""
+    
+    show_milestone_info "$milestone"
+    echo ""
+    
+    while [[ $iteration -le $MAX_ITERATIONS ]] && [[ "$quality_passed" == "false" ]]; do
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "🔄 ITERATION $iteration"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        # Development phase
+        echo "👨‍💻 Phase 1: Development"
+        run_development_phase $iteration
+        
+        # Commit changes
+        echo "📝 Committing changes..."
+        commit_changes $iteration
+        
+        # Review phase
+        echo "🔍 Phase 2: Code Review"
+        local review_result=$(run_review_phase $iteration)
+        
+        # Check quality gates
+        if [[ $(echo "$review_result" | jq -r '.quality_passed') == "true" ]]; then
+            quality_passed=true
+            echo "✅ Quality gates PASSED!"
+        else
+            echo "❌ Quality gates failed. Issues found:"
+            echo "$review_result" | jq -r '.issues[]' | sed 's/^/   - /'
+            prepare_feedback_context "$review_result" $iteration
+        fi
+        
+        # Update state
+        update_milestone_state $iteration "$quality_passed" "$review_result"
+        
+        ((iteration++))
+        
+        if [[ "$quality_passed" == "false" ]] && [[ $iteration -le $MAX_ITERATIONS ]]; then
+            echo "⏳ Waiting $PAUSE_BETWEEN_ITERATIONS seconds..."
+            sleep $PAUSE_BETWEEN_ITERATIONS
+        fi
+    done
+    
+    # Final summary
+    final_milestone_summary "$milestone" "$quality_passed" $((iteration-1))
+}
+
+# Run development phase
+run_development_phase() {
+    local iteration=$1
+    local output_file="$MILESTONE_DIR/iterations/dev_${iteration}.md"
+    
+    # Create development context
+    local dev_context=$(create_development_context $iteration)
+    
+    # Save context for debugging
+    echo "$dev_context" > "$MILESTONE_DIR/iterations/context_${iteration}.md"
+    
+    # Execute Claude with extended timeout
+    echo "Running Claude Code..."
+    echo "⏳ This may take several minutes..."
+    
+    # Save any errors separately
+    local error_file="$MILESTONE_DIR/iterations/errors_${iteration}.txt"
+    
+    if echo "$dev_context" | $CLAUDE_CMD --print > "$output_file" 2>"$error_file"; then
+        echo "✅ Development phase completed"
+    else
+        echo "⚠️  Development phase had errors (see $error_file)"
+    fi
+    
+    # Show brief summary of what was done
+    echo "Development output saved to: $output_file"
+    if [[ -f "$output_file" ]]; then
+        echo "Summary: $(head -n 5 "$output_file" | grep -E '^(Created|Modified|Implemented)' || echo "See output file for details")"
+    fi
+    
+    # Update checklist based on output
+    update_checklist_from_output $iteration
+    
+    # Accumulate context
+    accumulate_context $iteration
+}
+
+# Create development context
+create_development_context() {
+    local iteration=$1
+    
+    # Get milestone info
+    local milestone_info=$(get_milestone_info "$CURRENT_MILESTONE")
+    
+    # Get project context
+    local project_context=$(cat "$PROJECT_CONTEXT_FILE" 2>/dev/null || echo "No project context available")
+    
+    # Get checklist status
+    local checklist_status=$(show_milestone_checklist_status)
+    
+    # Get accumulated context
+    local accumulated_context=$(cat "$MILESTONE_DIR/context/accumulated.json" | jq -r '
+        "Files: " + (.completed_files | join(", ")) + "\n" +
+        "Features: " + (.implemented_features | join(", "))
+    ' 2>/dev/null || echo "No previous iterations")
+    
+    # Build previous feedback section if not first iteration
+    local previous_feedback=""
+    if [[ $iteration -gt 1 ]]; then
+        local feedback_file="$MILESTONE_DIR/reviews/feedback_$((iteration-1)).json"
+        if [[ -f "$feedback_file" ]]; then
+            previous_feedback=$'\n\n=== PREVIOUS REVIEW FEEDBACK ===\nFix these issues from the last review:\n'
+            previous_feedback+=$(jq -r '.issues[]' "$feedback_file" | sed 's/^/- /')
+        fi
+    fi
+    
+    # Load and populate the prompt template
+    load_prompt "$PROMPTS_DIR/milestone/development.md" \
+        "CURRENT_FEATURE=$CURRENT_FEATURE" \
+        "CURRENT_MILESTONE=$CURRENT_MILESTONE" \
+        "PROJECT_CONTEXT=$project_context" \
+        "MILESTONE_INFO=$milestone_info" \
+        "CHECKLIST_STATUS=$checklist_status" \
+        "ACCUMULATED_CONTEXT=$accumulated_context" \
+        "PREVIOUS_FEEDBACK=$previous_feedback"
+}
+
+# Run review phase
+run_review_phase() {
+    local iteration=$1
+    local review_output="$MILESTONE_DIR/reviews/review_${iteration}.json"
+    
+    echo "🔍 Starting review phase for iteration $iteration"
+    
+    # Run pre-flight checks
+    echo "🛫 Running pre-flight checks..."
+    local preflight_results=""
+    
+    # Check for package.json to determine project type
+    if [[ -f "package.json" ]]; then
+        # Node.js project checks
+        echo "  - Building project..."
+        local build_result=$(npm run build --if-present 2>&1 || npx tsc --noEmit 2>&1 || echo "No build configured")
+        preflight_results+="Build Check:\n$build_result\n\n"
+        
+        echo "  - Running linter..."
+        local lint_result=$(npm run lint --if-present 2>&1 || echo "No linter configured")
+        preflight_results+="Lint Check:\n$lint_result\n\n"
+        
+        echo "  - Running tests..."
+        local test_result=$(npm test -- --run --reporter=dot 2>&1 || echo "Tests need attention")
+        preflight_results+="Test Results:\n$test_result\n\n"
+    elif [[ -f "Cargo.toml" ]]; then
+        # Rust project checks
+        echo "  - Checking Rust project..."
+        local check_result=$(cargo check 2>&1 || echo "Cargo check failed")
+        preflight_results+="Cargo Check:\n$check_result\n\n"
+        
+        echo "  - Running tests..."
+        local test_result=$(cargo test 2>&1 || echo "Tests need attention")
+        preflight_results+="Test Results:\n$test_result\n\n"
+    elif [[ -f "go.mod" ]]; then
+        # Go project checks
+        echo "  - Building Go project..."
+        local build_result=$(go build ./... 2>&1 || echo "Go build failed")
+        preflight_results+="Build Check:\n$build_result\n\n"
+        
+        echo "  - Running tests..."
+        local test_result=$(go test ./... 2>&1 || echo "Tests need attention")
+        preflight_results+="Test Results:\n$test_result\n\n"
+    else
+        preflight_results="No recognized project type for pre-flight checks"
+    fi
+    
+    # Get commit info
+    local commit_info=$(git log -1 --pretty=format:"%H|%s" 2>/dev/null || echo "no-git|Manual review")
+    local commit_diff=$(git diff HEAD~1 HEAD 2>/dev/null || echo "No git diff available")
+    
+    echo "📝 Creating review context..."
+    # Create review context
+    local review_context=$(create_review_context "$commit_info" "$commit_diff" "$preflight_results")
+    
+    # Execute review
+    echo "🤖 Running Claude Code for comprehensive review with parallel subagents..."
+    
+    # Save review context for debugging
+    echo "$review_context" > "$MILESTONE_DIR/reviews/context_${iteration}.txt"
+    
+    # Run Claude and capture both output and errors (with timeout)
+    local review_result=""
+    
+    # Use timeout command to prevent hanging (5 minutes max for review)
+    if command -v timeout >/dev/null 2>&1; then
+        review_result=$(echo "$review_context" | timeout 300 $CLAUDE_CMD --print 2>"$MILESTONE_DIR/reviews/errors_${iteration}.txt")
+    else
+        review_result=$(echo "$review_context" | $CLAUDE_CMD --print 2>"$MILESTONE_DIR/reviews/errors_${iteration}.txt")
+    fi
+    
+    if [[ -z "$review_result" ]]; then
+        echo "❌ Claude review failed. Check errors in reviews/errors_${iteration}.txt"
+        review_result='{"quality_passed": false, "issues": ["Claude review execution failed - check error log"]}'
+    fi
+    
+    # Save raw output for debugging
+    echo "$review_result" > "$MILESTONE_DIR/reviews/raw_${iteration}.txt"
+    
+    # Strip markdown code blocks if present
+    local clean_result="$review_result"
+    
+    # Method 1: Check if result starts with ```json
+    if [[ "$review_result" =~ ^[[:space:]]*\`\`\`json ]]; then
+        # Extract content between ```json and ```
+        clean_result=$(echo "$review_result" | sed -n '/```json/,/```/{/```json/d;/```/d;p}')
+    # Method 2: Check if result starts with just ```
+    elif [[ "$review_result" =~ ^[[:space:]]*\`\`\` ]]; then
+        # Extract content between ``` and ```
+        clean_result=$(echo "$review_result" | sed -n '/```/,/```/{/```/d;p}')
+    fi
+    
+    # Parse and save result
+    if echo "$clean_result" | jq '.' > "$review_output" 2>/dev/null; then
+        echo "✅ Review completed successfully"
+    else
+        echo "❌ Failed to parse review JSON from cleaned result"
+        echo "Attempting to extract JSON from output..."
+        
+        # Try multiple extraction methods
+        # Method 1: Extract the first complete JSON object
+        if echo "$review_result" | grep -o '{[^}]*}' | head -1 | jq '.' > "$review_output" 2>/dev/null; then
+            echo "✅ Successfully extracted simple JSON from output"
+        # Method 2: Try to find JSON using a more complex pattern
+        elif echo "$review_result" | perl -0777 -ne 'print $1 if /(\{(?:[^{}]|(?R))*\})/' | jq '.' > "$review_output" 2>/dev/null; then
+            echo "✅ Successfully extracted nested JSON from output"
+        # Method 3: Try to extract between first { and last }
+        elif echo "$review_result" | sed -n '/{/,/}/{p}' | jq '.' > "$review_output" 2>/dev/null; then
+            echo "✅ Successfully extracted JSON using sed"
+        else
+            echo "❌ All JSON extraction methods failed"
+            echo '{"quality_passed": false, "issues": ["Review output was not valid JSON"], "score": 0, "critical_issues": [], "metrics": {}}' > "$review_output"
+        fi
+    fi
+    
+    # Display review summary
+    echo ""
+    echo "📊 Review Summary:"
+    local score=$(jq -r '.score // 0' "$review_output")
+    local quality_passed=$(jq -r '.quality_passed // false' "$review_output")
+    local critical_count=$(jq -r '.critical_issues | length // 0' "$review_output" 2>/dev/null || echo "0")
+    
+    echo "  - Score: $score/100"
+    echo "  - Quality Gates: $([ "$quality_passed" == "true" ] && echo "✅ PASSED" || echo "❌ FAILED")"
+    echo "  - Critical Issues: $critical_count"
+    
+    if [[ "$critical_count" -gt 0 ]]; then
+        echo ""
+        echo "⚠️  Critical Issues Found:"
+        jq -r '.critical_issues[]? | "  - [\(.severity)] \(.issue)"' "$review_output" 2>/dev/null || true
+    fi
+    
+    cat "$review_output"
+}
+
+# Create review context
+create_review_context() {
+    local commit_info=$1
+    local commit_diff=$2
+    local preflight_results=$3
+    
+    # Get required data
+    local project_context=$(cat "$PROJECT_CONTEXT_FILE" 2>/dev/null || echo "No project context file found")
+    local milestone_requirements=$(get_milestone_info "$CURRENT_MILESTONE" 2>&1)
+    local checklist_status=$(show_milestone_checklist_status 2>&1)
+    
+    # Use parallel review prompt if requested
+    local review_prompt_file="$PROMPTS_DIR/review/milestone-review.md"
+    if [[ "${USE_PARALLEL_REVIEW:-true}" == "true" ]]; then
+        review_prompt_file="$PROMPTS_DIR/review/milestone-review-parallel.md"
+    fi
+    
+    # Load and populate the review prompt template
+    load_prompt "$review_prompt_file" \
+        "CURRENT_FEATURE=$CURRENT_FEATURE" \
+        "CURRENT_MILESTONE=$CURRENT_MILESTONE" \
+        "PROJECT_CONTEXT=$project_context" \
+        "MILESTONE_REQUIREMENTS=$milestone_requirements" \
+        "CHECKLIST_STATUS=$checklist_status" \
+        "COMMIT_INFO=$commit_info" \
+        "COMMIT_DIFF=$commit_diff" \
+        "PREFLIGHT_RESULTS=$preflight_results"
+}
+
+# =============================================================================
+# HELPER FUNCTIONS
+# =============================================================================
+
+# Get milestone info from requirements
+get_milestone_info() {
+    local milestone=$1
+    
+    if command -v yq &> /dev/null; then
+        yq eval ".milestones[] | select(.id == \"$milestone\")" "$REQUIREMENTS_FILE" 2>/dev/null
+    else
+        echo "Milestone: $milestone"
+    fi
+}
+
+# Check milestone dependencies
+check_milestone_dependencies() {
+    local milestone=$1
+    
+    if command -v yq &> /dev/null; then
+        local deps=$(yq eval ".milestones[] | select(.id == \"$milestone\") | .dependencies[]" "$REQUIREMENTS_FILE" 2>/dev/null)
+        
+        if [[ -z "$deps" ]]; then
+            return 0  # No dependencies
+        fi
+        
+        # Check each dependency
+        local global_state="$WORK_DIR/state/global.json"
+        for dep in $deps; do
+            if ! jq -e ".milestones_completed | contains([\"$dep\"])" "$global_state" >/dev/null 2>&1; then
+                echo "⚠️  Dependency $dep not completed"
+                return 1
+            fi
+        done
+    fi
+    
+    return 0
+}
+
+# Show milestone info
+show_milestone_info() {
+    local milestone=$1
+    
+    echo "📌 Milestone: $milestone"
+    if command -v yq &> /dev/null; then
+        echo "Name: $(yq eval ".milestones[] | select(.id == \"$milestone\") | .name" "$REQUIREMENTS_FILE")"
+        echo "Description: $(yq eval ".milestones[] | select(.id == \"$milestone\") | .description" "$REQUIREMENTS_FILE")"
+        echo "Dependencies: $(yq eval ".milestones[] | select(.id == \"$milestone\") | .dependencies | join(\", \")" "$REQUIREMENTS_FILE")"
+    fi
+}
+
+# Show milestone checklist status
+show_milestone_checklist_status() {
+    local checklist="$MILESTONE_DIR/state/checklist.json"
+    
+    if [[ -f "$checklist" ]]; then
+        jq -r 'to_entries | .[] | "[\(.key)]" as $cat | .value | to_entries | .[] | "\($cat) \(.key): \(.value)"' "$checklist" | \
+        while read line; do
+            if [[ "$line" =~ "completed" ]]; then
+                echo "✅ $line"
+            elif [[ "$line" =~ "in_progress" ]]; then
+                echo "🔄 $line"
+            else
+                echo "⬜ $line"
+            fi
+        done
+    else
+        echo "No checklist found"
+    fi
+}
+
+# Update checklist from output
+update_checklist_from_output() {
+    local iteration=$1
+    local output_file="$MILESTONE_DIR/iterations/dev_${iteration}.md"
+    
+    echo "📋 Updating checklist..."
+    
+    # This is a simplified version - in reality, Claude would update this
+    # For now, just track that we attempted the iteration
+    local checklist="$MILESTONE_DIR/state/checklist.json"
+    
+    # Mark first pending item as in_progress (simulation)
+    # In real usage, Claude's output would drive these updates
+}
+
+# Accumulate context
+accumulate_context() {
+    local iteration=$1
+    local context_file="$MILESTONE_DIR/context/accumulated.json"
+    
+    # In real usage, this would parse Claude's output
+    # For now, just track the iteration
+    jq --arg iter "$iteration" \
+        '.last_iteration = $iter' \
+        "$context_file" > "$context_file.tmp" && \
+        mv "$context_file.tmp" "$context_file"
+}
+
+# Update milestone state
+update_milestone_state() {
+    local iteration=$1
+    local quality_passed=$2
+    local review_result=$3
+    
+    cat > "$MILESTONE_DIR/state/current.json" <<EOF
+{
+    "milestone_id": "$CURRENT_MILESTONE",
+    "current_iteration": $iteration,
+    "phase": "$([ "$quality_passed" == "true" ] && echo "completed" || echo "in_progress")",
+    "quality_passed": $quality_passed,
+    "last_review": $review_result,
+    "last_update": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+}
+
+# Update global state - milestone start
+update_global_state_milestone_start() {
+    local milestone=$1
+    local global_state="$WORK_DIR/state/global.json"
+    
+    jq --arg ms "$milestone" \
+        '.milestones_in_progress += [$ms] | .milestones_in_progress |= unique' \
+        "$global_state" > "$global_state.tmp" && \
+        mv "$global_state.tmp" "$global_state"
+}
+
+# Update global state - milestone complete
+update_global_state_milestone_complete() {
+    local milestone=$1
+    local global_state="$WORK_DIR/state/global.json"
+    
+    jq --arg ms "$milestone" \
+        '.milestones_completed += [$ms] | 
+         .milestones_in_progress -= [$ms] | 
+         .milestones_completed |= unique' \
+        "$global_state" > "$global_state.tmp" && \
+        mv "$global_state.tmp" "$global_state"
+}
+
+# Commit changes
+commit_changes() {
+    local iteration=$1
+    
+    # Check if git repo exists
+    if ! git rev-parse --git-dir > /dev/null 2>&1; then
+        echo "⚠️  Not in a git repository, skipping commit"
+        return
+    fi
+    
+    # Stage changes
+    git add -A
+    
+    # Check for changes
+    if git diff --cached --quiet; then
+        echo "No changes to commit"
+        return
+    fi
+    
+    # Create commit
+    local checklist_progress=$(show_milestone_checklist_status | grep "✅" | head -3 | sed 's/✅ /- /')
+    
+    git commit -m "feat($CURRENT_FEATURE): Milestone $CURRENT_MILESTONE - Iteration $iteration" \
+        -m "Automated development by Claude Autonomous Development System" \
+        -m "" \
+        -m "Progress:" \
+        -m "$checklist_progress" \
+        || echo "Commit failed"
+}
+
+# Prepare feedback context
+prepare_feedback_context() {
+    local review_result=$1
+    local iteration=$2
+    
+    echo "$review_result" > "$MILESTONE_DIR/reviews/feedback_${iteration}.json"
+}
+
+# Final milestone summary
+final_milestone_summary() {
+    local milestone=$1
+    local quality_passed=$2
+    local total_iterations=$3
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📊 MILESTONE SUMMARY"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Feature: $CURRENT_FEATURE"
+    echo "Milestone: $milestone"
+    
+    if [[ "$quality_passed" == "true" ]]; then
+        echo "Status: ✅ COMPLETED"
+        echo "Iterations: $total_iterations"
+        
+        # Update global state
+        update_global_state_milestone_complete "$milestone"
+        
+        echo ""
+        echo "📋 Final checklist:"
+        show_milestone_checklist_status | head -10
+        
+        echo ""
+        echo "🎉 Milestone $milestone completed successfully!"
+        
+        # Suggest next milestone
+        if command -v yq &> /dev/null; then
+            local next_milestones=$(yq eval ".milestones[] | select(.dependencies | contains([\"$milestone\"])) | .id" "$REQUIREMENTS_FILE" 2>/dev/null)
+            if [[ -n "$next_milestones" ]]; then
+                echo ""
+                echo "📌 Next available milestones:"
+                echo "$next_milestones" | sed 's/^/   - /'
+            fi
+        fi
+    else
+        echo "Status: ❌ INCOMPLETE"
+        echo "Iterations used: $total_iterations (max reached)"
+        echo ""
+        echo "Manual intervention required to complete this milestone."
+        echo "Review the feedback and continue with:"
+        echo "  $0 start $CURRENT_FEATURE $milestone"
+    fi
+}
+
+# Show status
+show_status() {
+    local feature_id="${1:-}"
+    local milestone="${2:-}"
+    
+    if [[ -z "$feature_id" ]]; then
+        # Show all features
+        list_features
+        return
+    fi
+    
+    set_feature_context "$feature_id"
+    
+    if [[ ! -d "$FEATURE_DIR" ]]; then
+        echo "❌ Feature $feature_id not found"
+        exit 1
+    fi
+    
+    echo "📊 Status for $feature_id"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Global status
+    if [[ -f "$WORK_DIR/state/global.json" ]]; then
+        local global_state=$(cat "$WORK_DIR/state/global.json")
+        echo "Completed milestones: $(echo "$global_state" | jq -r '.milestones_completed | join(", ")')"
+        echo "In progress: $(echo "$global_state" | jq -r '.milestones_in_progress | join(", ")')"
+        echo ""
+    fi
+    
+    # Milestone-specific status
+    if [[ -n "$milestone" ]]; then
+        local milestone_dir="$WORK_DIR/milestones/$milestone"
+        
+        if [[ ! -d "$milestone_dir" ]]; then
+            echo "Milestone $milestone not started"
+            return
+        fi
+        
+        echo "Milestone $milestone status:"
+        
+        if [[ -f "$milestone_dir/state/current.json" ]]; then
+            local state=$(cat "$milestone_dir/state/current.json")
+            echo "Phase: $(echo "$state" | jq -r '.phase')"
+            echo "Iteration: $(echo "$state" | jq -r '.current_iteration')"
+            echo "Quality passed: $(echo "$state" | jq -r '.quality_passed')"
+        fi
+        
+        echo ""
+        echo "Checklist progress:"
+        if [[ -f "$milestone_dir/state/checklist.json" ]]; then
+            local total=$(jq -r '[.. | select(type=="string")] | length' "$milestone_dir/state/checklist.json")
+            local completed=$(jq -r '[.. | select(type=="string" and . == "completed")] | length' "$milestone_dir/state/checklist.json")
+            echo "Progress: $completed/$total ($(( completed * 100 / total ))%)"
+        fi
+    else
+        # Show all milestones status
+        echo "Milestones overview:"
+        if command -v yq &> /dev/null && [[ -f "$REQUIREMENTS_FILE" ]]; then
+            yq eval '.milestones[].id' "$REQUIREMENTS_FILE" | while read -r ms; do
+                local status="⬜ not started"
+                
+                if jq -e ".milestones_completed | contains([\"$ms\"])" "$WORK_DIR/state/global.json" >/dev/null 2>&1; then
+                    status="✅ completed"
+                elif jq -e ".milestones_in_progress | contains([\"$ms\"])" "$WORK_DIR/state/global.json" >/dev/null 2>&1; then
+                    status="🔄 in progress"
+                fi
+                
+                echo "  $ms - $status"
+            done
+        fi
+    fi
+}
+
+# =============================================================================
+# MAIN COMMAND HANDLER
+# =============================================================================
+
+main() {
+    local command="${1:-}"
+    
+    case "$command" in
+        "init-project")
+            init_project "${2:-}"
+            ;;
+            
+        "init")
+            init_feature "${2:-}"
+            ;;
+            
+        "list")
+            list_features
+            ;;
+            
+        "start")
+            local feature_id="${2:-}"
+            local milestone="${3:-}"
+            
+            if [[ -z "$feature_id" ]] || [[ -z "$milestone" ]]; then
+                echo "❌ Error: Feature ID and milestone required"
+                echo "Usage: $0 start <feature-id> <milestone>"
+                echo "Example: $0 start FEAT-123 M1"
+                exit 1
+            fi
+            
+            set_feature_context "$feature_id"
+            setup_workspace
+            setup_workspace "$milestone"
+            run_milestone_development "$milestone"
+            ;;
+            
+        "status")
+            show_status "${2:-}" "${3:-}"
+            ;;
+            
+        "milestones")
+            local feature_id="${2:-}"
+            
+            if [[ -z "$feature_id" ]]; then
+                echo "❌ Error: Feature ID required"
+                echo "Usage: $0 milestones <feature-id>"
+                exit 1
+            fi
+            
+            set_feature_context "$feature_id"
+            
+            if [[ ! -f "$REQUIREMENTS_FILE" ]]; then
+                echo "❌ Feature $feature_id not found"
+                exit 1
+            fi
+            
+            echo "📋 Milestones for $feature_id:"
+            if command -v yq &> /dev/null; then
+                yq eval '.milestones[] | "  " + .id + " - " + .name + " (deps: " + (.dependencies | join(", ")) + ")"' "$REQUIREMENTS_FILE"
+            else
+                echo "  Install yq to see milestone details"
+            fi
+            ;;
+            
+        "recover")
+            local feature_id="${2:-}"
+            local milestone="${3:-}"
+            local action="${4:-review}"  # Default to review
+            
+            if [[ -z "$feature_id" ]] || [[ -z "$milestone" ]]; then
+                echo "❌ Error: Feature ID and milestone required"
+                echo "Usage: $0 recover <feature-id> <milestone> [review|continue|next]"
+                echo "  review   - Re-run review for last iteration"
+                echo "  continue - Continue development from current iteration"
+                echo "  next     - Force next iteration"
+                exit 1
+            fi
+            
+            set_feature_context "$feature_id"
+            CURRENT_MILESTONE="$milestone"
+            MILESTONE_DIR="$WORK_DIR/milestones/$milestone"
+            
+            if [[ ! -d "$MILESTONE_DIR" ]]; then
+                echo "❌ Milestone $milestone not found"
+                exit 1
+            fi
+            
+            # Load current state
+            local current_state=$(cat "$MILESTONE_DIR/state/current.json")
+            local current_iteration=$(echo "$current_state" | jq -r '.current_iteration')
+            local phase=$(echo "$current_state" | jq -r '.phase')
+            
+            echo "📊 Current state: Iteration $current_iteration, Phase: $phase"
+            
+            case "$action" in
+                "review")
+                    echo "🔍 Re-running review for iteration $current_iteration..."
+                    cd "$PROJECT_ROOT"  # Ensure we're in the right directory for git
+                    local review_result=$(run_review_phase $current_iteration)
+                    
+                    # Check quality gates
+                    if [[ $(echo "$review_result" | jq -r '.quality_passed') == "true" ]]; then
+                        echo "✅ Quality gates PASSED!"
+                        update_milestone_state $current_iteration "true" "$review_result"
+                        final_milestone_summary "$milestone" "true" $current_iteration
+                    else
+                        echo "❌ Quality gates failed. Issues found:"
+                        echo "$review_result" | jq -r '.issues[]' | sed 's/^/   - /'
+                        prepare_feedback_context "$review_result" $current_iteration
+                        update_milestone_state $current_iteration "false" "$review_result"
+                        echo ""
+                        echo "📝 Run '$0 recover $feature_id $milestone continue' to proceed with fixes"
+                    fi
+                    ;;
+                    
+                "continue")
+                    echo "🔄 Continuing development from iteration $current_iteration..."
+                    local next_iteration=$((current_iteration + 1))
+                    
+                    if [[ $next_iteration -gt $MAX_ITERATIONS ]]; then
+                        echo "❌ Maximum iterations ($MAX_ITERATIONS) reached"
+                        exit 1
+                    fi
+                    
+                    # Run next development iteration
+                    echo "Starting iteration $next_iteration..."
+                    run_development_phase $next_iteration
+                    commit_changes $next_iteration
+                    
+                    # Run review
+                    local review_result=$(run_review_phase $next_iteration)
+                    
+                    # Update state
+                    if [[ $(echo "$review_result" | jq -r '.quality_passed') == "true" ]]; then
+                        update_milestone_state $next_iteration "true" "$review_result"
+                        final_milestone_summary "$milestone" "true" $next_iteration
+                    else
+                        update_milestone_state $next_iteration "false" "$review_result"
+                        echo "❌ Quality gates still failing. Run recover again or check the issues."
+                    fi
+                    ;;
+                    
+                "next")
+                    echo "⏩ Forcing next iteration..."
+                    local next_iteration=$((current_iteration + 1))
+                    update_milestone_state $next_iteration "false" '{"quality_passed": false, "issues": ["Manually advanced"]}'
+                    echo "Updated to iteration $next_iteration"
+                    ;;
+                    
+                *)
+                    echo "❌ Unknown action: $action"
+                    echo "Valid actions: review, continue, next"
+                    exit 1
+                    ;;
+            esac
+            ;;
+            
+        "reset")
+            local feature_id="${2:-}"
+            local milestone="${3:-}"
+            
+            if [[ -z "$feature_id" ]]; then
+                echo "❌ Error: Feature ID required"
+                echo "Usage: $0 reset <feature-id> [milestone]"
+                exit 1
+            fi
+            
+            set_feature_context "$feature_id"
+            
+            if [[ -n "$milestone" ]]; then
+                echo "🔄 Resetting milestone $milestone for $feature_id..."
+                rm -rf "$WORK_DIR/milestones/$milestone"
+                
+                # Update global state
+                local global_state="$WORK_DIR/state/global.json"
+                jq --arg ms "$milestone" \
+                    '.milestones_in_progress -= [$ms] | .milestones_completed -= [$ms]' \
+                    "$global_state" > "$global_state.tmp" && \
+                    mv "$global_state.tmp" "$global_state"
+            else
+                echo "🔄 Resetting entire feature $feature_id..."
+                read -p "Are you sure? This will delete all progress! (y/N) " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    rm -rf "$FEATURE_DIR"
+                    echo "✅ Feature reset complete"
+                else
+                    echo "❌ Reset cancelled"
+                fi
+            fi
+            ;;
+            
+        *)
+            echo "🤖 M42 Dev - Autonomous Development Tool"
+            echo ""
+            echo "Usage: $0 <command> [options]"
+            echo ""
+            echo "Project Management:"
+            echo "  init-project [--force]         - Initialize project structure and analyze codebase"
+            echo ""
+            echo "Feature Management:"
+            echo "  init <feature-id>              - Initialize new feature"
+            echo "  list                           - List all features"
+            echo ""
+            echo "Development:"
+            echo "  start <feature-id> <milestone> - Start milestone development"
+            echo "  status [feature-id] [milestone] - Show status"
+            echo "  milestones <feature-id>        - List milestones for feature"
+            echo ""
+            echo "Utilities:"
+            echo "  reset <feature-id> [milestone] - Reset feature or milestone"
+            echo "  recover <feature-id> <milestone> [action] - Recover from failures"
+            echo ""
+            echo "Recovery actions:"
+            echo "  review   - Re-run review for last iteration"
+            echo "  continue - Continue development from current state"
+            echo "  next     - Force advance to next iteration"
+            echo ""
+            echo "Examples:"
+            echo "  $0 init-project               - Set up project for first time"
+            echo "  $0 init FEAT-123-auth         - Create new feature"
+            echo "  $0 start FEAT-123-auth M1     - Start first milestone"
+            echo "  $0 status FEAT-123-auth       - Check progress"
+            echo "  $0 start FEAT-123-auth M4     - Start M4 (if parallel)"
+            echo "  $0 recover FEAT-123 M1 review - Re-run failed review"
+            
+            # Exit with 0 for help, 1 for invalid command
+            if [[ "$command" == "--help" ]] || [[ "$command" == "-h" ]] || [[ -z "$command" ]]; then
+                exit 0
+            else
+                echo ""
+                echo "❌ Unknown command: $command"
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+# Run main
+main "$@"

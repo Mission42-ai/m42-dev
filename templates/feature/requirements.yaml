@@ -1,0 +1,185 @@
+# ===== FEATURE OVERVIEW =====
+feature:
+  id: "{{FEATURE_ID}}"
+  name: "Feature Name Here"
+  version: "1.0.0"
+  owner: "@your-team"
+  target_release: "v1.0.0"
+  
+  description: |
+    Brief description of what this feature does.
+    Why is it needed? What problem does it solve?
+  
+  business_value:
+    - "Improves user experience by..."
+    - "Reduces operational costs by..."
+    - "Enables new capabilities for..."
+
+# ===== HIGH-LEVEL REQUIREMENTS =====
+requirements:
+  functional:
+    - id: "FR-1"
+      priority: "P0"
+      description: "Core functionality that MUST work"
+      
+    - id: "FR-2"
+      priority: "P1"
+      description: "Important but not critical functionality"
+      
+  technical:
+    - "Must follow Event Sourcing pattern"
+    - "CQRS for commands and queries"
+    - "TypeScript with strict mode"
+    - "100% test coverage for domain logic"
+    
+  non_functional:
+    - metric: "response_time_p95"
+      target: "< 200ms"
+    - metric: "availability"
+      target: "> 99.9%"
+
+# ===== MILESTONES =====
+milestones:
+  # Milestone 1: Foundation
+  - id: "M1"
+    name: "Domain Model & Infrastructure"
+    description: "Create domain entities, aggregates, and base infrastructure"
+    dependencies: []  # No dependencies, can start immediately
+    estimated_hours: 4
+    
+    implementation_checklist:
+      domain:
+        "Create [Feature]Aggregate extending AggregateRoot": "pending"
+        "Define domain events (e.g., [Feature]Created, [Feature]Updated)": "pending"
+        "Implement value objects for domain concepts": "pending"
+        "Add domain validation rules": "pending"
+        
+      infrastructure:
+        "Create I[Feature]Repository interface": "pending"
+        "Implement PostgreSQL repository": "pending"
+        "Setup event store integration": "pending"
+        "Configure dependency injection": "pending"
+    
+    acceptance_tests:
+      - scenario: "Domain model validation"
+        given: ["Valid domain entity created"]
+        when: ["Business rules applied"]
+        then: ["State changes correctly", "Domain events emitted"]
+        
+      - scenario: "Repository operations"
+        given: ["Domain entity exists"]
+        when: ["Save and retrieve from repository"]
+        then: ["Entity persisted correctly", "Events stored"]
+    
+    definition_of_done:
+      - "All checklist items completed"
+      - "Unit tests pass with >95% coverage"
+      - "Domain events properly structured"
+      - "Repository integration tested"
+
+  # Milestone 2: Application Layer
+  - id: "M2"
+    name: "Commands, Queries & Handlers"
+    description: "Implement CQRS pattern with commands and queries"
+    dependencies: ["M1"]  # Needs domain model first
+    estimated_hours: 3
+    
+    implementation_checklist:
+      commands:
+        "Create command DTOs (Create[Feature]Command, etc.)": "pending"
+        "Implement command handlers": "pending"
+        "Add command validation": "pending"
+        "Wire up with event bus": "pending"
+        
+      queries:
+        "Define query interfaces (Get[Feature]ByIdQuery, etc.)": "pending"
+        "Implement query handlers": "pending"
+        "Create read models/projections": "pending"
+        "Add query result DTOs": "pending"
+        
+      services:
+        "Create application service interfaces": "pending"
+        "Implement business orchestration": "pending"
+        "Add transaction management": "pending"
+    
+    acceptance_tests:
+      - scenario: "Command execution"
+        given: ["Valid command submitted"]
+        when: ["Command handler processes"]
+        then: ["Aggregate updated", "Events published", "Success result"]
+        
+      - scenario: "Query execution"
+        given: ["Data exists in read model"]
+        when: ["Query executed"]
+        then: ["Correct data returned", "Performance within SLA"]
+
+  # Milestone 3: API Layer
+  - id: "M3"
+    name: "REST API & Integration"
+    description: "Expose functionality through REST endpoints"
+    dependencies: ["M2"]  # Needs application layer
+    estimated_hours: 3
+    
+    implementation_checklist:
+      api:
+        "Create REST controllers": "pending"
+        "Define API routes": "pending"
+        "Add request/response DTOs": "pending"
+        "Implement error handling": "pending"
+        
+      integration:
+        "Add OpenAPI documentation": "pending"
+        "Configure authentication/authorization": "pending"
+        "Setup request validation": "pending"
+        "Add rate limiting": "pending"
+        
+      middleware:
+        "Create logging middleware": "pending"
+        "Add correlation ID tracking": "pending"
+        "Implement error transformation": "pending"
+
+  # Milestone 4: Testing & Quality (can run parallel to M3)
+  - id: "M4"
+    name: "Comprehensive Testing"
+    description: "Unit, integration, and E2E tests"
+    dependencies: ["M2"]  # Can start after application layer
+    estimated_hours: 4
+    
+    implementation_checklist:
+      unit_tests:
+        "Domain model tests": "pending"
+        "Command handler tests": "pending"
+        "Query handler tests": "pending"
+        "Service tests": "pending"
+        
+      integration_tests:
+        "Repository integration tests": "pending"
+        "Event store integration tests": "pending"
+        "API endpoint tests": "pending"
+        "Database transaction tests": "pending"
+        
+      e2e_tests:
+        "Complete user journey tests": "pending"
+        "Performance tests": "pending"
+        "Error scenario tests": "pending"
+
+# ===== PARALLEL EXECUTION STRATEGY =====
+parallel_execution:
+  max_concurrent_milestones: 2
+  coordination:
+    - "M1 must complete before M2, M3, M4"
+    - "M2 must complete before M3"
+    - "M4 can run parallel to M3"
+  
+  suggested_assignment:
+    - agent_1: ["M1", "M2", "M3"]  # Main development path
+    - agent_2: ["M4"]              # Testing in parallel
+
+# ===== GLOBAL DEFINITION OF DONE =====
+global_definition_of_done:
+  - "All milestones completed"
+  - "All tests passing"
+  - "Code review passed"
+  - "Documentation complete"
+  - "Performance benchmarks met"
+  - "Security scan passed"

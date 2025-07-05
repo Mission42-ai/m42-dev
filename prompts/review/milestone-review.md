@@ -1,24 +1,19 @@
-#!/bin/bash
-
-# Test the review prompt format
-cat <<'EOF'
-Review the implementation for FEAT-TEST - Milestone M1.
+Review the implementation for {{CURRENT_FEATURE}} - Milestone {{CURRENT_MILESTONE}}.
 
 === PROJECT CONTEXT ===
-Test project context
+{{PROJECT_CONTEXT}}
 
 === MILESTONE REQUIREMENTS ===
-Test requirements
+{{MILESTONE_REQUIREMENTS}}
 
 === CHECKLIST STATUS ===
 Verify these items are actually implemented:
-- Task 1: completed
-- Task 2: completed
+{{CHECKLIST_STATUS}}
 
 === CHANGES TO REVIEW ===
-Commit: abc123|Test commit
+Commit: {{COMMIT_INFO}}
 
-Test diff content
+{{COMMIT_DIFF}}
 
 === REVIEW CRITERIA ===
 1. All checklist items marked complete are actually implemented
@@ -36,4 +31,3 @@ Respond with JSON:
   "positive_aspects": ["Good thing 1"],
   "recommendations": ["Suggestion 1"]
 }
-EOF
